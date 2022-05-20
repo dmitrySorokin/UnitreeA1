@@ -1,0 +1,60 @@
+seed: 1
+record_video: False
+
+environment:
+  render: False
+  visualize_command: False
+  num_envs: 100
+  eval_every_n: 100
+  num_threads: 30
+  simulation_dt: 0.001
+  #simulation_dt: 0.01
+  control_dt: 0.01
+  max_time: 10.0
+  gamma: 0.996
+  # Curriculum factors
+  k_0: 0.03
+  k_d: 0.997
+  reward:
+    BaseForwardVelocity:
+      coeff: 0.75
+    BaseLateralAndRotation:
+      coeff: 0 #0.9
+    Work:
+      coeff: 0.50
+    GroundImpact:
+      coeff: 0.00006
+    Smoothness:
+      coeff: 0.03
+    ActionMagnitude:
+      coeff: 0.005
+    JointSpeed:
+      coeff: 0.006
+    Orientation:
+      coeff: 0 #2.4
+    ZAcceleration:
+      coeff: 2.0
+    Slip:
+      coeff: 0.4
+    AirTime:
+      coeff: 0.0 #0.3
+      desired_foot_height: 0.07
+    Torque:
+      coeff: 0.002
+    BaseHeight:
+      coeff: 40
+  terrain:
+    frequency: 1.0
+    zScale: 0.2
+    xSize: 40.0
+    ySize: 40.0
+    xSamples: 200
+    ySamples: 200
+    fractalOctaves: 8
+    fractalLacunarity: 4.0
+    fractalGain: 0.9
+
+
+architecture:
+  policy_net: [512, 512]
+  value_net: [512, 512]
