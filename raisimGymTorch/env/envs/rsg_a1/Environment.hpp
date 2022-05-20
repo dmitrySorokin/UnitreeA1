@@ -20,8 +20,7 @@
  *                         body Angular velocities,      n =  3, si = 18
  *                         joint velocities,             n = 12, si = 21
  *                         contacts binary vector,       n =  4, si = 33
- *                         previous action,              n = 12, si = 37
- *                         target angular dir     ,      n = 2, si = 49 ] total 50
+ *                         previous action,              n = 12, si = 37 ] total 49
  *
  *   action space      = [ joint angles                  n = 12, si =  0 ] total 12
  */
@@ -99,7 +98,7 @@ public:
         a1_->setGeneralizedForce(Eigen::VectorXd::Zero(gvDim_));
 
         /// MUST BE DONE FOR ALL ENVIRONMENTS
-        obDim_ = 51;  /// convention described on top
+        obDim_ = 49;  /// convention described on top
         actionDim_ = nJoints_;
         actionMean_.setZero(actionDim_);
         actionStd_.setZero(actionDim_);
@@ -118,9 +117,7 @@ public:
             Eigen::VectorXd::Constant(6, 0.0),   // body linear & angular velocity
             Eigen::VectorXd::Constant(12, 0.0),  // joint velocity
             Eigen::VectorXd::Constant(4, 0.0),   // contacts binary vector
-            Eigen::VectorXd::Constant(12, 0.0),  // previous action
-            0.0, 0.0;                            // target angular velocity
-
+            Eigen::VectorXd::Constant(12, 0.0);  // previous action
 
         obStd_ << 0.01,                          // height
             Eigen::VectorXd::Constant(2, 1.0),   // body roll & pitch
@@ -129,8 +126,7 @@ public:
             1.0 / 2.5, 1.0 / 2.5, 1.0 / 2.5,     // body angular velocity
             Eigen::VectorXd::Constant(12, .01),  // joint velocity
             Eigen::VectorXd::Constant(4, 1.0),   // contacts binary vector
-            Eigen::VectorXd::Constant(12, 1.0),  // previous action
-            1.0, 1.0;                            // target angular velocity
+            Eigen::VectorXd::Constant(12, 1.0);  // previous action
 
         groundImpactForces_.setZero();
         previousGroundImpactForces_.setZero();
@@ -152,6 +148,8 @@ public:
 
         // Initialize materials
         world_->setMaterialPairProp("default", "rubber", 0.8, 0.15, 0.001);
+
+        command_ << 1.0, 0.0, 0.0;
 
         // TODO: Move values to config
         // Initialize environmental sampler distributions
@@ -193,9 +191,12 @@ public:
         updateObservation();
         steps_ = 0;
 
-        rewards_.reset();
+        // for (const auto& [name, value] : rewards_.getStdMap()) {
+        //     std::cout << name << " " << value << std::endl;
+        // }
+        // std::cout << "----------\n\n";
 
-        targetAngularDirection_ = decisionDist_(randomGenerator_) < 0.5 ? Eigen::Vector2d{1.0, 0.0} : Eigen::Vector2d{0.0, 1.0};
+        rewards_.reset();
     }
 
     void curriculumUpdate() final {
@@ -309,8 +310,7 @@ public:
             bodyAngularVelocityNoised,         // angular velocity 3
             velocitiesNoised,                  // joint velocity 12
             contacts,                          // contacts binary vector 4
-            previousJointPositions_,           // previous action 12
-            targetAngularDirection_;            // target angular velocity
+            previousJointPositions_;           // previous action 12
     }
 
     void observe(Eigen::Ref<EigenVec> ob) final {
@@ -322,7 +322,7 @@ public:
         // Terminal condition
         double euler_angles[3];
         raisim::quatToEulerVec(&gc_[3], euler_angles);
-        if (gc_[2] < 0.28) {
+        if (gc_[2] < 0.28 || fabs(euler_angles[0]) > 0.4 || fabs(euler_angles[1]) > 0.2) {
             terminalReward = float(terminalRewardCoeff_);
             return true;
         }
@@ -353,7 +353,7 @@ private:
     // Curriculum factors
     double k_c, k_d;
 
-    Eigen::Vector2d targetAngularDirection_ = {1.0, 0.0};
+    Eigen::Vector3d command_;
 
     std::random_device randomGenerator_;
     std::uniform_real_distribution<double> x0Dist_;
@@ -435,15 +435,12 @@ private:
     //
 
     inline double calculateBaseForwardVelocityCost() {
-        if (targetAngularDirection_[0]) {
-                return std::max(std::min(bodyAngularVel_[2], 0.6), 1e-7);
-        }
-        return std::max(std::min(-bodyAngularVel_[2], 0.6), 1e-7);
+        return std::max(std::min(bodyLinearVel_[0], 0.6), 1e-7);
     }
 
     inline double calculateBaseLateralAndRotationCost() {
         return k_c *
-               (bodyLinearVel_[0] * bodyLinearVel_[0] + bodyLinearVel_[1] * bodyLinearVel_[1]);
+               (bodyLinearVel_[1] * bodyLinearVel_[1] + bodyAngularVel_[2] * bodyAngularVel_[2]);
     }
 
     // inline double logisticKernel(double value) {
@@ -495,9 +492,8 @@ private:
             // We only use xy velocity components
             vel[2] = 0.0;
 
-            if (footContactState_[contactSequentialIndex_[footBodyIndex]] == false) {
+            if (footContactState_[contactSequentialIndex_[footBodyIndex]] == false)
                 footAirTimeCost += (p_f_hat - pos[2]) * (p_f_hat - pos[2]) * vel.squaredNorm();
-            }
         }
 
         return k_c * footAirTimeCost;
@@ -512,9 +508,8 @@ private:
             // We only use xy velocity components
             vel[2] = 0.0;
 
-            if (footContactState_[contactSequentialIndex_[footBodyIndex]] == true) {
-                footSlipCost += vel.squaredNorm() + std::abs(bodyAngularVel_[2]);
-            }
+            if (footContactState_[contactSequentialIndex_[footBodyIndex]] == true)
+                footSlipCost += vel.squaredNorm();
         }
 
         return k_c * footSlipCost;

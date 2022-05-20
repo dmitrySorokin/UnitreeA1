@@ -19,7 +19,7 @@ environment:
     BaseForwardVelocity:
       coeff: 0.75
     BaseLateralAndRotation:
-      coeff: 0 #0.9
+      coeff: 0.9
     Work:
       coeff: 0.50
     GroundImpact:
@@ -31,7 +31,7 @@ environment:
     JointSpeed:
       coeff: 0.006
     Orientation:
-      coeff: 0 #2.4
+      coeff: 2.4
     ZAcceleration:
       coeff: 2.0
     Slip:
@@ -42,7 +42,7 @@ environment:
     Torque:
       coeff: 0.002
     BaseHeight:
-      coeff: 40
+      coeff: 4.0
   terrain:
     frequency: 1.0
     zScale: 0.2
