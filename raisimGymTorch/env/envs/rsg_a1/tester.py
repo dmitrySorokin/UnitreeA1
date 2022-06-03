@@ -17,6 +17,7 @@ if __name__ == '__main__':
     parser.add_argument('-w', '--weight', help='trained weight path', type=str, default='')
     parser.add_argument('--viz', action='store_true')
     parser.add_argument('--episodes', default=10, type=int)
+    parser.add_argument('--speed', default=None, type=float)
     args = parser.parse_args()
 
     # check if gpu is available
@@ -34,6 +35,10 @@ if __name__ == '__main__':
     cfg['environment']['num_envs'] = 1
     cfg['environment']['k_0'] = 1.0
     cfg['environment']['render'] = args.viz
+
+    if args.speed is not None:
+        cfg['environment']['target_speed']['low'] = args.speed
+        cfg['environment']['target_speed']['up'] = args.speed
 
     env = VecEnv(
         rsg_a1.RaisimGymEnv(home_path + "/rsc", dump(cfg['environment'], Dumper=RoundTripDumper)),
@@ -99,6 +104,15 @@ if __name__ == '__main__':
         print('stats values:')
         for key, values in stats_info.items():
             print(f'\t{key}: {np.mean(values):0.5f} +- {np.std(values):0.5f}')
+
+        with open('results.csv', 'a') as out:
+            out.write(
+                f'{args.speed};'
+                f'{np.mean(stats_info["posx"])};{np.std(stats_info["posx"])};'
+                f'{np.mean(stats_info["posy"])};{np.std(stats_info["posy"])};'
+                f'{np.mean(stats_info["speedx"])};{np.std(stats_info["speedx"])};'
+                f'{np.mean(stats_info["speedy"])};{np.std(stats_info["speedy"])}\n'
+            )
 
         if args.viz:
             env.turn_off_visualization()

@@ -276,7 +276,10 @@ public:
         return {
             {"reward", rewards_.getStdMap()},
             {"stats", {
-                {"speed", bodyLinearVel_[0]}
+                {"speedx", bodyLinearVel_[0]},
+                {"speedy", bodyLinearVel_[1]},
+                {"posx", gc_[0]},
+                {"posy", gc_[1]}
             }}
         };
     }

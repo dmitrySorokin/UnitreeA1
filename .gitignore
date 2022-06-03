@@ -15,3 +15,5 @@ raisimGymTorch/env/data/*
 id_rsa
 */data/*
 raisimGymTorch/env/bin/rsg*
+.DS_STORE
+
