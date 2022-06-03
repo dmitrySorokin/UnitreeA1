@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <set>
 #include <algorithm>
+#include <cmath>
 #include "../../RaisimGymEnv.hpp"
 
 /* Convention
@@ -238,7 +239,7 @@ public:
 
         updateObservation();
 
-        rewards_.record("BaseForwardVelocity", calculateBaseForwardVelocityCost());
+        rewards_.record("BaseForwardVelocity", 0.6 * calculateBaseForwardVelocityCost());
         rewards_.record("BaseLateralAndRotation", -calculateBaseLateralAndRotationCost());
         rewards_.record("BaseHeight", -0.25 * calculateBaseHeightCost());
         rewards_.record("Torque", -0.25 * calculateTorqueCost());
@@ -459,40 +460,13 @@ private:
     //
 
     inline double calculateBaseForwardVelocityCost() {
-        if (bodyLinearVel_[0] < targetSpeed_) {
-            return std::max(bodyLinearVel_[0], 0.0) / targetSpeed_ * 0.6;
-        }
-        return (2 * targetSpeed_ - bodyLinearVel_[0]) / targetSpeed_ * 0.6;
+        return std::exp(-std::pow(bodyLinearVel_[0] - targetSpeed_, 2.0) / 0.1);
     }
 
     inline double calculateBaseLateralAndRotationCost() {
         return k_c *
                (bodyLinearVel_[1] * bodyLinearVel_[1] + bodyAngularVel_[2] * bodyAngularVel_[2]);
     }
-
-    // inline double logisticKernel(double value) {
-    //   return -1.0 / (exp(value) + 2.0 + exp(-value));
-    // }
-
-    // inline double calculateBaseLinearVelocityCost() {
-    //   auto dt = control_dt_;
-    //   auto c_v1 = dt * rewards_.getCoeff("BaseLinearVelocity");
-    //   auto c_v2 = dt * cfg_["reward"]["BaseLinearVelocity"]["second_coeff"].template
-    //   As<double>();
-
-    //   Eigen::Vector3d desiredLinearVel;
-    //   desiredLinearVel << command[0], command[1], 0.0;
-
-    //   return logisticKernel(fabs(c_v2*(bodyLinearVel_ - desiredLinearVel).norm()));
-    // }
-
-    // inline double calculateBaseAngularVelocityCost() {
-    //   auto dt = control_dt_;
-    //   auto c_w = dt * rewards_.getCoeff("BaseAngularVelocity");
-
-    //   // TODO: Check if using bodyAngularVel_[2] is correct for angular velocity
-    //   return logisticKernel(fabs(bodyAngularVel_[2] - command[2]));
-    // }
 
     inline double calculateBaseHeightCost() {
         return k_c * (gc_init_[2] - gc_[2]) * (gc_init_[2] - gc_[2]);
