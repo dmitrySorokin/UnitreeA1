@@ -68,7 +68,8 @@ if __name__ == '__main__':
 
         episode_rewards = []
         episode_steps = []
-        episode_info = defaultdict(list)
+        reward_info = defaultdict(list)
+        stats_info = defaultdict(list)
         for episode in trange(args.episodes):
             done, total_reward, steps, info = False, 0, 0, {}
             while not done:
@@ -82,8 +83,10 @@ if __name__ == '__main__':
                 info = infos[0]
             episode_rewards.append(total_reward)
             episode_steps.append(steps)
-            for key, value in info.items():
-                episode_info[key].append(value)
+            for key, value in info['reward'].items():
+                reward_info[key].append(value)
+            for key, value in info['stats'].items():
+                stats_info[key].append(value)
             print('----------------------------------------------------')
             print(f'average ll reward: {total_reward:0.5f}')
             print(f'time elapsed [sec]: {steps * 0.01:6.4f}')
@@ -91,7 +94,10 @@ if __name__ == '__main__':
         print(f'return {np.mean(episode_rewards)} +- {np.std(episode_rewards)}')
         print(f'steps {np.mean(episode_steps)} +- {np.std(episode_steps)}')
         print('reward terms:')
-        for key, values in episode_info.items():
+        for key, values in reward_info.items():
+            print(f'\t{key}: {np.mean(values):0.5f} +- {np.std(values):0.5f}')
+        print('stats values:')
+        for key, values in stats_info.items():
             print(f'\t{key}: {np.mean(values):0.5f} +- {np.std(values):0.5f}')
 
         if args.viz:

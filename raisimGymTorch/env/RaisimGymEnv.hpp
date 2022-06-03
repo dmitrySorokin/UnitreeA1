@@ -36,6 +36,7 @@ public:
     virtual void observe(Eigen::Ref<EigenVec> ob) = 0;
     virtual float step(const Eigen::Ref<EigenVec>& action) = 0;
     virtual bool isTerminalState(float& terminalReward) = 0;
+    virtual InfoType getInfo() = 0;
     ////////////////////////////////////////
 
     /////// optional methods ///////
@@ -77,9 +78,6 @@ public:
     }
     void stopRecordingVideo() {
         server_->stopRecordingVideo();
-    }
-    raisim::Reward& getRewards() {
-        return rewards_;
     }
 
 protected:

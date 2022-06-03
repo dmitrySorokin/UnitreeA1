@@ -39,7 +39,7 @@ class RaisimGymVecEnv:
         reward = np.zeros(self.num_envs, dtype=np.float32)
         done = np.zeros(self.num_envs, dtype=np.bool)
         self.wrapper.step(action, reward, done)
-        return self.observe(), reward, done, self.wrapper.rewardInfo()
+        return self.observe(), reward, done, self.wrapper.getInfo()
 
     def load_scaling(self, dir_name, iteration, count=1e5):
         mean = np.loadtxt(f'{dir_name}/mean{iteration}.csv', dtype=np.float32)

@@ -98,7 +98,7 @@ public:
         a1_->setGeneralizedForce(Eigen::VectorXd::Zero(gvDim_));
 
         /// MUST BE DONE FOR ALL ENVIRONMENTS
-        obDim_ = 49;  /// convention described on top
+        obDim_ = 50;  /// convention described on top
         actionDim_ = nJoints_;
         actionMean_.setZero(actionDim_);
         actionStd_.setZero(actionDim_);
@@ -117,7 +117,8 @@ public:
             Eigen::VectorXd::Constant(6, 0.0),   // body linear & angular velocity
             Eigen::VectorXd::Constant(12, 0.0),  // joint velocity
             Eigen::VectorXd::Constant(4, 0.0),   // contacts binary vector
-            Eigen::VectorXd::Constant(12, 0.0);  // previous action
+            Eigen::VectorXd::Constant(12, 0.0),  // previous action
+            0.6;
 
         obStd_ << 0.01,                          // height
             Eigen::VectorXd::Constant(2, 1.0),   // body roll & pitch
@@ -126,7 +127,9 @@ public:
             1.0 / 2.5, 1.0 / 2.5, 1.0 / 2.5,     // body angular velocity
             Eigen::VectorXd::Constant(12, .01),  // joint velocity
             Eigen::VectorXd::Constant(4, 1.0),   // contacts binary vector
-            Eigen::VectorXd::Constant(12, 1.0);  // previous action
+            Eigen::VectorXd::Constant(12, 1.0),  // previous action
+            0.28;
+
 
         groundImpactForces_.setZero();
         previousGroundImpactForces_.setZero();
@@ -175,10 +178,10 @@ public:
         }
     }
 
-    void init() final {
+    virtual void init() override {
     }
 
-    void reset() final {
+    virtual void reset() override {
         // std::cout << "env.reset" << std::endl;
         resampleEnvironmentalParameters();
         gc_init_[0] = x0Dist_(randomGenerator_);
@@ -197,13 +200,14 @@ public:
         // std::cout << "----------\n\n";
 
         rewards_.reset();
+        targetSpeed_ = 0.2 + decisionDist_(randomGenerator_);
     }
 
-    void curriculumUpdate() final {
+    virtual void curriculumUpdate() override {
         k_c = std::min(pow(k_c, k_d), 1.0);
     }
 
-    float step(const Eigen::Ref<EigenVec>& action) final {
+    virtual float step(const Eigen::Ref<EigenVec>& action) override {
         /// action scaling
         Eigen::VectorXd pTarget12 = action.cast<double>();
         // pTarget12 = pTarget12.cwiseMin(1).cwiseMax(-1);
@@ -264,6 +268,15 @@ public:
         return rewards_.sum();
     }
 
+    virtual InfoType getInfo() override {
+        return {
+            {"rewards", rewards_.getStdMap()},
+            {"stats", {
+                {"speed", bodyLinearVel_[0]}
+            }}
+        };
+    }
+
     void updateObservation() {
         a1_->getState(gc_, gv_);
         raisim::Vec<4> quat = {gc_[3], gc_[4], gc_[5], gc_[6]};
@@ -310,15 +323,16 @@ public:
             bodyAngularVelocityNoised,         // angular velocity 3
             velocitiesNoised,                  // joint velocity 12
             contacts,                          // contacts binary vector 4
-            previousJointPositions_;           // previous action 12
+            previousJointPositions_,           // previous action 12
+            targetSpeed_;
     }
 
-    void observe(Eigen::Ref<EigenVec> ob) final {
+    virtual void observe(Eigen::Ref<EigenVec> ob) override {
         /// convert it to float
         ob = (obDouble_ - obMean_).cwiseProduct(obStd_).cast<float>();
     }
 
-    bool isTerminalState(float& terminalReward) final {
+    virtual bool isTerminalState(float& terminalReward) override {
         // Terminal condition
         double euler_angles[3];
         raisim::quatToEulerVec(&gc_[3], euler_angles);
@@ -352,6 +366,7 @@ private:
 
     // Curriculum factors
     double k_c, k_d;
+    double targetSpeed_ = 0.6;
 
     Eigen::Vector3d command_;
 
@@ -435,7 +450,10 @@ private:
     //
 
     inline double calculateBaseForwardVelocityCost() {
-        return std::max(std::min(bodyLinearVel_[0], 0.6), 1e-7);
+        if (bodyLinearVel_[0] < targetSpeed_) {
+            return std::max(bodyLinearVel_[0], 0.0) / targetSpeed_ * 0.6;
+        }
+        return (2 * targetSpeed_ - bodyLinearVel_[0]) / targetSpeed_ * 0.6;
     }
 
     inline double calculateBaseLateralAndRotationCost() {

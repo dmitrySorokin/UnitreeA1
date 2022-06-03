@@ -6,6 +6,7 @@
 #ifndef SRC_RAISIMGYMVECENV_HPP
 #define SRC_RAISIMGYMVECENV_HPP
 
+#include "Common.hpp"
 #include "RaisimGymEnv.hpp"
 #include "omp.h"
 #include "Yaml.hpp"
@@ -45,13 +46,13 @@ public:
         num_envs_ = cfg_["num_envs"].template As<int>();
 
         environments_.reserve(num_envs_);
-        rewardInformation_.reserve(num_envs_);
+        information_.reserve(num_envs_);
         for (int i = 0; i < num_envs_; i++) {
             environments_.push_back(new ChildEnvironment(resourceDir_, cfg_, render_ && i == 0));
             environments_.back()->setSimulationTimeStep(
                 cfg_["simulation_dt"].template As<double>());
             environments_.back()->setControlTimeStep(cfg_["control_dt"].template As<double>());
-            rewardInformation_.push_back(environments_.back()->getRewards().getStdMap());
+            information_.push_back(environments_.back()->getInfo());
         }
 
         setSeed(0);
@@ -186,8 +187,8 @@ public:
             env->curriculumUpdate();
     }
 
-    const std::vector<std::map<std::string, float>> &getRewardInfo() {
-        return rewardInformation_;
+    const std::vector<InfoType>& getInfo() {
+        return information_;
     }
 
 
@@ -226,7 +227,7 @@ private:
         Eigen::Ref<EigenVec>& reward,
         Eigen::Ref<EigenBoolVec>& done) {
         reward[agentId] = environments_[agentId]->step(action.row(agentId));
-        rewardInformation_[agentId] = environments_[agentId]->getRewards().getStdMap();
+        information_[agentId] = environments_[agentId]->getInfo();
 
         float terminalReward = 0;
         done[agentId] = environments_[agentId]->isTerminalState(terminalReward);
@@ -238,7 +239,7 @@ private:
     }
 
     std::vector<ChildEnvironment*> environments_;
-    std::vector<std::map<std::string, float>> rewardInformation_;
+    std::vector<InfoType> information_;
 
     int num_envs_ = 1;
     int obDim_ = 0, actionDim_ = 0;
