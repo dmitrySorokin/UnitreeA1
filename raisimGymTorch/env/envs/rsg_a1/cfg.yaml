@@ -15,6 +15,9 @@ environment:
   # Curriculum factors
   k_0: 0.03
   k_d: 0.997
+  target_speed:
+    low: 0.2
+    up: 1.2
   reward:
     BaseForwardVelocity:
       coeff: 0.75

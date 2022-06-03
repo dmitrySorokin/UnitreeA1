@@ -163,6 +163,10 @@ public:
         kdDist_ = std::uniform_real_distribution<double>(0.4, 0.8);
         comDist_ = std::uniform_real_distribution<double>(-0.0015, 0.0015);
         motorStrengthDist_ = std::uniform_real_distribution<double>(0.9, 1.1);
+        speedDist_ = std::uniform_real_distribution<double>(
+            cfg["target_speed"]["low"].template As<double>(),
+            cfg["target_speed"]["up"].template As<double>()
+        );
 
         initialActuationUpperLimits_ = a1_->getActuationUpperLimits().e().tail(nJoints_);
         initialActuationLowerLimits_ = a1_->getActuationLowerLimits().e().tail(nJoints_);
@@ -200,7 +204,7 @@ public:
         // std::cout << "----------\n\n";
 
         rewards_.reset();
-        targetSpeed_ = 0.2 + decisionDist_(randomGenerator_);
+        targetSpeed_ = speedDist_(randomGenerator_);
     }
 
     virtual void curriculumUpdate() override {
@@ -270,7 +274,7 @@ public:
 
     virtual InfoType getInfo() override {
         return {
-            {"rewards", rewards_.getStdMap()},
+            {"reward", rewards_.getStdMap()},
             {"stats", {
                 {"speed", bodyLinearVel_[0]}
             }}
@@ -381,6 +385,8 @@ private:
     std::uniform_real_distribution<double> kdDist_;
     std::uniform_real_distribution<double> comDist_;
     std::uniform_real_distribution<double> motorStrengthDist_;
+
+    std::uniform_real_distribution<double> speedDist_;
 
     Eigen::VectorXd initialActuationUpperLimits_;
     Eigen::VectorXd initialActuationLowerLimits_;
