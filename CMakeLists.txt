@@ -24,6 +24,7 @@ ENDMACRO()
 ####################
 set(Dependencies)
 
+add_subdirectory(extern/pybind11 pybind11)
 find_package(Eigen3 REQUIRED)
 
 if (APPLE)
@@ -68,7 +69,6 @@ endif()
 
 find_package(raisim CONFIG REQUIRED)
 find_package(OpenMP REQUIRED)
-find_package(pybind11 CONFIG REQUIRED)
 
 
 #######################
