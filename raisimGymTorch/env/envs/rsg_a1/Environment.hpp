@@ -243,15 +243,15 @@ public:
         rewards_.record("BaseLateralAndRotation", -calculateBaseLateralAndRotationCost());
         rewards_.record("BaseHeight", -0.25 * calculateBaseHeightCost());
         rewards_.record("Torque", -0.25 * calculateTorqueCost());
-        rewards_.record("JointSpeed", -0.25 * calculateJointSpeedCost());
+        rewards_.record("JointSpeed", -0.25 * 0.36 * calculateJointSpeedCost());
         rewards_.record("AirTime", calculateAirTimeCost());
-        rewards_.record("Slip", -0.25 * calculateSlipCost());
+        rewards_.record("Slip", -0.25 * 0.36 * calculateSlipCost());
         rewards_.record("Orientation", -0.25 * calculateOrientationCost());
         rewards_.record("Smoothness", -0.25 * calculateSmoothnessCost());
 
         // New terms
         rewards_.record("Work", -0.25 * calculateWorkCost());
-        rewards_.record("GroundImpact", -0.25 * calculateGroundImpactCost());
+        rewards_.record("GroundImpact", -0.25 * 0.36 * calculateGroundImpactCost());
         // rewards_.record("ActionMagnitude", -calculateActionMagnitudeCost());
         rewards_.record("ZAcceleration", -calculateZAccelerationCost());
 
@@ -460,7 +460,7 @@ private:
     //
 
     inline double calculateBaseForwardVelocityCost() {
-        return std::exp(-std::pow(bodyLinearVel_[0] - targetSpeed_, 2.0) / 0.1);
+        return std::max(1.0 - std::abs(bodyLinearVel_[0] / targetSpeed_ - 1.0), 0.0);
     }
 
     inline double calculateBaseLateralAndRotationCost() {
@@ -478,7 +478,7 @@ private:
 
     inline double calculateJointSpeedCost() {
         auto joint_velocities = gv_.tail(nJoints_);
-        return k_c * joint_velocities.squaredNorm();
+        return k_c * joint_velocities.squaredNorm() / (targetSpeed_ * targetSpeed_);
     }
 
     inline double calculateAirTimeCost() {
@@ -493,8 +493,9 @@ private:
             // We only use xy velocity components
             vel[2] = 0.0;
 
-            if (footContactState_[contactSequentialIndex_[footBodyIndex]] == false)
+            if (!footContactState_[contactSequentialIndex_[footBodyIndex]]) {
                 footAirTimeCost += (p_f_hat - pos[2]) * (p_f_hat - pos[2]) * vel.squaredNorm();
+            }
         }
 
         return k_c * footAirTimeCost;
@@ -509,11 +510,12 @@ private:
             // We only use xy velocity components
             vel[2] = 0.0;
 
-            if (footContactState_[contactSequentialIndex_[footBodyIndex]] == true)
+            if (footContactState_[contactSequentialIndex_[footBodyIndex]]) {
                 footSlipCost += vel.squaredNorm();
+            }
         }
 
-        return k_c * footSlipCost;
+        return k_c * footSlipCost / (targetSpeed_ * targetSpeed_);
     }
 
     inline double calculateOrientationCost() {
@@ -536,7 +538,7 @@ private:
     }
 
     inline double calculateGroundImpactCost() {
-        return k_c * (groundImpactForces_ - previousGroundImpactForces_).squaredNorm();
+        return k_c * (groundImpactForces_ - previousGroundImpactForces_).squaredNorm() / (targetSpeed_ * targetSpeed_);
     }
 
     inline double calculateActionMagnitudeCost() {
