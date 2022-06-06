@@ -280,7 +280,8 @@ public:
                 {"speedx", bodyLinearVel_[0]},
                 {"speedy", bodyLinearVel_[1]},
                 {"posx", gc_[0]},
-                {"posy", gc_[1]}
+                {"posy", gc_[1]},
+                {"k_c", k_c}
             }}
         };
     }
@@ -478,7 +479,8 @@ private:
 
     inline double calculateJointSpeedCost() {
         auto joint_velocities = gv_.tail(nJoints_);
-        return k_c * joint_velocities.squaredNorm() / (targetSpeed_ * targetSpeed_);
+        const double speedCoef = std::max(std::abs(targetSpeed_), 0.6);
+        return k_c * joint_velocities.squaredNorm() / (speedCoef * speedCoef);
     }
 
     inline double calculateAirTimeCost() {
@@ -515,7 +517,8 @@ private:
             }
         }
 
-        return k_c * footSlipCost / (targetSpeed_ * targetSpeed_);
+        const double speedCoef = std::max(std::abs(targetSpeed_), 0.6);
+        return k_c * footSlipCost / (speedCoef * speedCoef);
     }
 
     inline double calculateOrientationCost() {
@@ -538,7 +541,8 @@ private:
     }
 
     inline double calculateGroundImpactCost() {
-        return k_c * (groundImpactForces_ - previousGroundImpactForces_).squaredNorm() / (targetSpeed_ * targetSpeed_);
+        const double speedCoef = std::max(std::abs(targetSpeed_), 0.6);
+        return k_c * (groundImpactForces_ - previousGroundImpactForces_).squaredNorm() / (speedCoef * speedCoef);
     }
 
     inline double calculateActionMagnitudeCost() {

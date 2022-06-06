@@ -108,6 +108,8 @@ if __name__ == '__main__':
         with open('results.csv', 'a') as out:
             out.write(
                 f'{args.speed};'
+                f'{np.mean(reward_info["reward_sum"])};{np.std(reward_info["reward_sum"])};'
+                f'{np.mean(reward_info["BaseForwardVelocity"])};{np.std(reward_info["BaseForwardVelocity"])};'
                 f'{np.mean(stats_info["posx"])};{np.std(stats_info["posx"])};'
                 f'{np.mean(stats_info["posy"])};{np.std(stats_info["posy"])};'
                 f'{np.mean(stats_info["speedx"])};{np.std(stats_info["speedx"])};'
