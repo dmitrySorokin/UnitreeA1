@@ -137,5 +137,5 @@ if __name__ == '__main__':
         print(f'time elapsed in this iteration: {end - start:6.4f}')
         print(f'fps: {total_steps / (end - start):6.0f}')
         print(f'real time factor: {total_steps / (end - start) * cfg["environment"]["control_dt"]:6.0f}')
-        print(f'curriculum factor: {np.mean([env_info["stats"]["k_c"] for env_info in info])}')
+        print(f'curriculum factor: {np.mean([env_info["stats"]["k_c"] for env_info in info]):0.2f}')
         print('----------------------------------------------------\n')
