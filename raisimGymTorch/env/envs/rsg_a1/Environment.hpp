@@ -460,7 +460,7 @@ private:
     //
 
     inline double calculateBaseForwardVelocityCost() {
-        return std::max(1.0 - std::abs(bodyLinearVel_[0] / targetSpeed_ - 1.0), 0.0);
+        return std::exp(-std::pow(bodyLinearVel_[0] - targetSpeed_, 2.0) / 0.01);
     }
 
     inline double calculateBaseLateralAndRotationCost() {
