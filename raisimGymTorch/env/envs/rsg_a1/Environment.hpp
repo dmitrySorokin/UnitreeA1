@@ -119,7 +119,7 @@ public:
             Eigen::VectorXd::Constant(12, 0.0),  // joint velocity
             Eigen::VectorXd::Constant(4, 0.0),   // contacts binary vector
             Eigen::VectorXd::Constant(12, 0.0),  // previous action
-            0.6;
+            0.0;
 
         obStd_ << 0.01,                          // height
             Eigen::VectorXd::Constant(2, 1.0),   // body roll & pitch
@@ -129,8 +129,7 @@ public:
             Eigen::VectorXd::Constant(12, .01),  // joint velocity
             Eigen::VectorXd::Constant(4, 1.0),   // contacts binary vector
             Eigen::VectorXd::Constant(12, 1.0),  // previous action
-            0.28;
-
+            0.65;
 
         groundImpactForces_.setZero();
         previousGroundImpactForces_.setZero();
@@ -206,6 +205,9 @@ public:
 
         rewards_.reset();
         targetSpeed_ = speedDist_(randomGenerator_);
+        if (decisionDist_(randomGenerator_) < 0.5) {
+            targetSpeed_ = -targetSpeed_;
+        }
     }
 
     virtual void curriculumUpdate() override {
