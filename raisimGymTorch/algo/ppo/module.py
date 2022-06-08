@@ -2,6 +2,7 @@ import torch.nn as nn
 import numpy as np
 import torch
 from torch.distributions import Normal
+from torch.nn import functional as F
 
 
 class Actor:
@@ -16,24 +17,24 @@ class Actor:
         self.action_mean = None
 
     def sample(self, obs):
-        self.action_mean = self.architecture.architecture(obs).cpu().numpy()
+        self.action_mean = self.architecture(obs).cpu().numpy()
         actions, log_prob = self.distribution.sample(self.action_mean)
         return actions, log_prob
 
     def evaluate(self, obs, actions):
-        self.action_mean = self.architecture.architecture(obs)
+        self.action_mean = self.architecture(obs)
         return self.distribution.evaluate(self.action_mean, actions)
 
     def parameters(self):
         return [*self.architecture.parameters(), *self.distribution.parameters()]
 
     def noiseless_action(self, obs):
-        return self.architecture.architecture(torch.from_numpy(obs).to(self.device))
+        return self.architecture(torch.from_numpy(obs).to(self.device))
 
     def save_deterministic_graph(self, file_name, example_input, device='cpu'):
-        transferred_graph = torch.jit.trace(self.architecture.architecture.to(device), example_input)
+        transferred_graph = torch.jit.trace(self.architecture.to(device), example_input)
         torch.jit.save(transferred_graph, file_name)
-        self.architecture.architecture.to(self.device)
+        self.architecture.to(self.device)
 
     def deterministic_parameters(self):
         return self.architecture.parameters()
@@ -57,10 +58,10 @@ class Critic:
         self.architecture.to(device)
 
     def predict(self, obs):
-        return self.architecture.architecture(obs).detach()
+        return self.architecture(obs).detach()
 
     def evaluate(self, obs):
-        return self.architecture.architecture(obs)
+        return self.architecture(obs)
 
     def parameters(self):
         return [*self.architecture.parameters()]
@@ -95,6 +96,45 @@ class MLP(nn.Module):
     def init_weights(sequential, scales):
         [torch.nn.init.orthogonal_(module.weight, gain=scales[idx]) for idx, module in
          enumerate(mod for mod in sequential if isinstance(mod, nn.Linear))]
+
+    def forward(self, t):
+        return self.architecture(t)
+
+
+class FilmMLP(nn.Module):
+    def __init__(self, shape, actionvation_fn, input_size, output_size):
+        super(FilmMLP, self).__init__()
+        self.activation_fn = actionvation_fn
+
+        self.enc = nn.Sequential(
+            nn.Linear(input_size - 1, 128),
+            nn.LeakyReLU(inplace=True),
+            nn.Linear(128, 128),
+            nn.LeakyReLU(inplace=True)
+        )
+
+        self.film_w = nn.Linear(1, 128)
+        self.film_b = nn.Linear(1, 128)
+
+        self.last = nn.Sequential(
+            nn.Linear(128, output_size)
+        )
+
+        self.apply(self.init_weights)
+        self.input_shape = [input_size]
+        self.output_shape = [output_size]
+
+    @staticmethod
+    def init_weights(module):
+        if isinstance(module, nn.Linear):
+            torch.nn.init.orthogonal_(module.weight, gain=np.sqrt(2))
+
+    def forward(self, t):
+        state, task = torch.split(t, [49, 1], dim=-1)
+        h = self.enc(state)
+        w, b = self.film_w(task), self.film_b(task)
+        h = h * w + b
+        return self.last(h)
 
 
 class MultivariateGaussianDiagonalCovariance(nn.Module):

@@ -48,14 +48,14 @@ if __name__ == '__main__':
     total_steps = n_steps * env.num_envs
 
     actor = ppo_module.Actor(
-        ppo_module.MLP(cfg['architecture']['policy_net'], nn.LeakyReLU, ob_dim, act_dim),
+        ppo_module.FilmMLP(cfg['architecture']['policy_net'], nn.LeakyReLU, ob_dim, act_dim),
         ppo_module.MultivariateGaussianDiagonalCovariance(
             act_dim, env.num_envs, 1.0, NormalSampler(act_dim), cfg['seed']),
         device
     )
 
     critic = ppo_module.Critic(
-        ppo_module.MLP(cfg['architecture']['value_net'], nn.LeakyReLU, ob_dim, 1),
+        ppo_module.FilmMLP(cfg['architecture']['value_net'], nn.LeakyReLU, ob_dim, 1),
         device
     )
 
