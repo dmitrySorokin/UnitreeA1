@@ -11,7 +11,7 @@ import torch.nn as nn
 import numpy as np
 import torch
 import argparse
-from collections import deque
+from collections import deque, defaultdict
 
 
 if __name__ == '__main__':
@@ -48,14 +48,14 @@ if __name__ == '__main__':
     total_steps = n_steps * env.num_envs
 
     actor = ppo_module.Actor(
-        ppo_module.FilmMLP(cfg['architecture']['policy_net'], nn.LeakyReLU, ob_dim, act_dim),
+        ppo_module.MLP(cfg['architecture']['policy_net'], nn.LeakyReLU, ob_dim, act_dim),
         ppo_module.MultivariateGaussianDiagonalCovariance(
             act_dim, env.num_envs, 1.0, NormalSampler(act_dim), cfg['seed']),
         device
     )
 
     critic = ppo_module.Critic(
-        ppo_module.FilmMLP(cfg['architecture']['value_net'], nn.LeakyReLU, ob_dim, 1),
+        ppo_module.MLP(cfg['architecture']['value_net'], nn.LeakyReLU, ob_dim, 1),
         device
     )
 
@@ -81,10 +81,10 @@ if __name__ == '__main__':
     if weight_path is not None:
         load_param(weight_path, env, actor, critic, ppo.optimizer, saver.data_dir)
 
-    curr_rewards = np.zeros(env.num_envs)
-    curr_steps = np.zeros(env.num_envs)
-    episode_rewards = deque(maxlen=env.num_envs)
-    episode_steps = deque(maxlen=env.num_envs)
+    curr_rewards = defaultdict(lambda: np.zeros(env.num_envs))
+    curr_steps = defaultdict(lambda: np.zeros(env.num_envs))
+    episode_rewards = defaultdict(lambda: deque(maxlen=env.num_envs))
+    episode_steps = defaultdict(lambda: deque(maxlen=env.num_envs))
 
     total_num_epochs = 5000
 

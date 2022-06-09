@@ -99,7 +99,7 @@ public:
         a1_->setGeneralizedForce(Eigen::VectorXd::Zero(gvDim_));
 
         /// MUST BE DONE FOR ALL ENVIRONMENTS
-        obDim_ = 50;  /// convention described on top
+        obDim_ = 51;  /// convention described on top
         actionDim_ = nJoints_;
         actionMean_.setZero(actionDim_);
         actionStd_.setZero(actionDim_);
@@ -119,7 +119,8 @@ public:
             Eigen::VectorXd::Constant(12, 0.0),  // joint velocity
             Eigen::VectorXd::Constant(4, 0.0),   // contacts binary vector
             Eigen::VectorXd::Constant(12, 0.0),  // previous action
-            0.0;
+            0.6,
+            0.6
 
         obStd_ << 0.01,                          // height
             Eigen::VectorXd::Constant(2, 1.0),   // body roll & pitch
@@ -129,7 +130,8 @@ public:
             Eigen::VectorXd::Constant(12, .01),  // joint velocity
             Eigen::VectorXd::Constant(4, 1.0),   // contacts binary vector
             Eigen::VectorXd::Constant(12, 1.0),  // previous action
-            0.65;
+            0.28,
+            0.28
 
         groundImpactForces_.setZero();
         previousGroundImpactForces_.setZero();
@@ -283,7 +285,8 @@ public:
                 {"speedy", bodyLinearVel_[1]},
                 {"posx", gc_[0]},
                 {"posy", gc_[1]},
-                {"k_c", k_c}
+                {"k_c", k_c},
+                {"v_target", targetSpeed_}
             }}
         };
     }
@@ -334,8 +337,13 @@ public:
             bodyAngularVelocityNoised,         // angular velocity 3
             velocitiesNoised,                  // joint velocity 12
             contacts,                          // contacts binary vector 4
-            previousJointPositions_,           // previous action 12
-            targetSpeed_;
+            previousJointPositions_;           // previous action 12
+
+        if (targetSpeed_ > 0) {
+            obDouble_ << targetSpeed_,  0;
+        } else {
+            obDouble_ << 0, -targetSpeed_;
+        }
     }
 
     virtual void observe(Eigen::Ref<EigenVec> ob) override {
