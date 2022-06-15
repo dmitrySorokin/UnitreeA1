@@ -16,8 +16,8 @@ environment:
   k_0: 0.03
   k_d: 0.997
   target_speed:
-    low: 0.2
-    up: 1.2
+    low: 0.6
+    up: 0.6
   reward:
     BaseForwardVelocity:
       coeff: 0.75

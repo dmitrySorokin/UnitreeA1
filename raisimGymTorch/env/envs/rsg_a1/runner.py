@@ -35,7 +35,10 @@ if __name__ == '__main__':
     cfg = YAML().load(open(task_path + '/cfg.yaml', 'r'))
 
     # create environment from the configuration file
-    env = VecEnv(RaisimGymEnv(home_path + '/rsc', dump(cfg['environment'], Dumper=RoundTripDumper)))
+    env = VecEnv(
+        RaisimGymEnv(home_path + '/rsc', dump(cfg['environment'], Dumper=RoundTripDumper)),
+        update_stats=True
+    )
     obs = env.reset()
 
     # shortcuts
