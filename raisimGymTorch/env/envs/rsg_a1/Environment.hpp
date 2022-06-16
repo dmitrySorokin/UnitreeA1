@@ -99,7 +99,7 @@ public:
         a1_->setGeneralizedForce(Eigen::VectorXd::Zero(gvDim_));
 
         /// MUST BE DONE FOR ALL ENVIRONMENTS
-        obDim_ = 51;  /// convention described on top
+        obDim_ = 49;  /// convention described on top
         actionDim_ = nJoints_;
         actionMean_.setZero(actionDim_);
         actionStd_.setZero(actionDim_);
@@ -118,9 +118,7 @@ public:
             Eigen::VectorXd::Constant(6, 0.0),   // body linear & angular velocity
             Eigen::VectorXd::Constant(12, 0.0),  // joint velocity
             Eigen::VectorXd::Constant(4, 0.0),   // contacts binary vector
-            Eigen::VectorXd::Constant(12, 0.0),  // previous action
-            0.6,
-            0.6
+            Eigen::VectorXd::Constant(12, 0.0);  // previous action
 
         obStd_ << 0.01,                          // height
             Eigen::VectorXd::Constant(2, 1.0),   // body roll & pitch
@@ -129,14 +127,11 @@ public:
             1.0 / 2.5, 1.0 / 2.5, 1.0 / 2.5,     // body angular velocity
             Eigen::VectorXd::Constant(12, .01),  // joint velocity
             Eigen::VectorXd::Constant(4, 1.0),   // contacts binary vector
-            Eigen::VectorXd::Constant(12, 1.0),  // previous action
-            0.28,
-            0.28
+            Eigen::VectorXd::Constant(12, 1.0);  // previous action
 
         groundImpactForces_.setZero();
         previousGroundImpactForces_.setZero();
         previousJointPositions_.setZero(nJoints_);
-        previous2JointPositions_.setZero(nJoints_);
         previousTorque_ = a1_->getGeneralizedForce().e().tail(nJoints_);
 
         /// indices of links that should make contact with ground
@@ -154,8 +149,6 @@ public:
         // Initialize materials
         world_->setMaterialPairProp("default", "rubber", 0.8, 0.15, 0.001);
 
-        command_ << 1.0, 0.0, 0.0;
-
         // TODO: Move values to config
         // Initialize environmental sampler distributions
         decisionDist_ = std::uniform_real_distribution<double>(0, 1);
@@ -165,10 +158,6 @@ public:
         kdDist_ = std::uniform_real_distribution<double>(0.4, 0.8);
         comDist_ = std::uniform_real_distribution<double>(-0.0015, 0.0015);
         motorStrengthDist_ = std::uniform_real_distribution<double>(0.9, 1.1);
-        speedDist_ = std::uniform_real_distribution<double>(
-            cfg["target_speed"]["low"].template As<double>(),
-            cfg["target_speed"]["up"].template As<double>()
-        );
 
         initialActuationUpperLimits_ = a1_->getActuationUpperLimits().e().tail(nJoints_);
         initialActuationLowerLimits_ = a1_->getActuationLowerLimits().e().tail(nJoints_);
@@ -196,7 +185,6 @@ public:
         a1_->setState(gc_init_, gv_init_);
 
         previousJointPositions_ = gc_.tail(nJoints_);
-        previous2JointPositions_ = gc_.tail(nJoints_);
         updateObservation();
         steps_ = 0;
 
@@ -206,10 +194,6 @@ public:
         // std::cout << "----------\n\n";
 
         rewards_.reset();
-        targetSpeed_ = speedDist_(randomGenerator_);
-        if (decisionDist_(randomGenerator_) < 0.5) {
-            targetSpeed_ = -targetSpeed_;
-        }
     }
 
     virtual void curriculumUpdate() override {
@@ -235,12 +219,6 @@ public:
             }
         }
 
-        // Record values for next step calculations
-        previousTorque_ = a1_->getGeneralizedForce().e().tail(nJoints_);
-        previous2JointPositions_ = previousJointPositions_;
-        previousJointPositions_ = gc_.tail(nJoints_);
-        previousGroundImpactForces_ = groundImpactForces_;
-
         updateObservation();
 
         rewards_.record("BaseForwardVelocity", 0.6 * calculateBaseForwardVelocityCost());
@@ -259,6 +237,11 @@ public:
         // rewards_.record("ActionMagnitude", -calculateActionMagnitudeCost());
         rewards_.record("ZAcceleration", -calculateZAccelerationCost());
 
+        // Record values for next step calculations
+        previousTorque_ = a1_->getGeneralizedForce().e().tail(nJoints_);
+        previousJointPositions_ = gc_.tail(nJoints_);
+        previousGroundImpactForces_ = groundImpactForces_;
+
         // Apply random force to the COM
         auto applyingForceDecision = decisionDist_(randomGenerator_);
         if (applyingForceDecision < 0.5) {
@@ -273,6 +256,9 @@ public:
             a1_->setExternalTorque(a1_->getBodyIdx("base"), externalTorque);
         }
 
+        // Stochastically resample environment parameters
+        resampleEnvironmentalParameters();
+
         ++steps_;
         return rewards_.sum();
     }
@@ -286,7 +272,6 @@ public:
                 {"posx", gc_[0]},
                 {"posy", gc_[1]},
                 {"k_c", k_c},
-                {"v_target", targetSpeed_}
             }}
         };
     }
@@ -338,12 +323,6 @@ public:
             velocitiesNoised,                  // joint velocity 12
             contacts,                          // contacts binary vector 4
             previousJointPositions_;           // previous action 12
-
-        if (targetSpeed_ > 0) {
-            obDouble_ << targetSpeed_,  0;
-        } else {
-            obDouble_ << 0, -targetSpeed_;
-        }
     }
 
     virtual void observe(Eigen::Ref<EigenVec> ob) override {
@@ -379,15 +358,12 @@ private:
     Eigen::Vector3d bodyLinearVel_, bodyAngularVel_;
     Eigen::Vector4d groundImpactForces_;
     Eigen::VectorXd previousJointPositions_;
-    Eigen::VectorXd previous2JointPositions_;
     Eigen::VectorXd previousTorque_;
     Eigen::Vector4d previousGroundImpactForces_;
 
     // Curriculum factors
     double k_c, k_d;
-    double targetSpeed_ = 0.6;
-
-    Eigen::Vector3d command_;
+    const double resampleProbability_ = 0.004;
 
     std::random_device randomGenerator_;
     std::uniform_real_distribution<double> x0Dist_;
@@ -400,8 +376,6 @@ private:
     std::uniform_real_distribution<double> kdDist_;
     std::uniform_real_distribution<double> comDist_;
     std::uniform_real_distribution<double> motorStrengthDist_;
-
-    std::uniform_real_distribution<double> speedDist_;
 
     Eigen::VectorXd initialActuationUpperLimits_;
     Eigen::VectorXd initialActuationLowerLimits_;
@@ -416,6 +390,10 @@ private:
 
 private:
     void resampleEnvironmentalParameters() {
+        if (decisionDist_(randomGenerator_) > resampleProbability_)  {
+            return;
+        }
+
         // std::cout << "Resampling enviroment parameters: " << std::endl;
 
         // Center Of Mass
@@ -471,8 +449,7 @@ private:
     //
 
     inline double calculateBaseForwardVelocityCost() {
-        return std::max(1.0 - std::abs(bodyLinearVel_[0] / targetSpeed_ - 1.0), 0.0);
-        // return std::exp(-std::pow(bodyLinearVel_[0] - targetSpeed_, 2.0) / 0.1);
+        return std::max(std::min(bodyLinearVel_[0], 0.35), 1e-7);
     }
 
     inline double calculateBaseLateralAndRotationCost() {
@@ -490,8 +467,7 @@ private:
 
     inline double calculateJointSpeedCost() {
         auto joint_velocities = gv_.tail(nJoints_);
-        const double speedCoef = std::max(std::abs(targetSpeed_), 0.6);
-        return k_c * joint_velocities.squaredNorm() / (speedCoef * speedCoef);
+        return k_c * joint_velocities.squaredNorm();
     }
 
     inline double calculateAirTimeCost() {
@@ -528,8 +504,7 @@ private:
             }
         }
 
-        const double speedCoef = std::max(std::abs(targetSpeed_), 0.6);
-        return k_c * footSlipCost / (speedCoef * speedCoef);
+        return k_c * footSlipCost;
     }
 
     inline double calculateOrientationCost() {
@@ -552,8 +527,7 @@ private:
     }
 
     inline double calculateGroundImpactCost() {
-        const double speedCoef = std::max(std::abs(targetSpeed_), 0.6);
-        return k_c * (groundImpactForces_ - previousGroundImpactForces_).squaredNorm() / (speedCoef * speedCoef);
+        return k_c * (groundImpactForces_ - previousGroundImpactForces_).squaredNorm();
     }
 
     inline double calculateActionMagnitudeCost() {

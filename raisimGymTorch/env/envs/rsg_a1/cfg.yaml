@@ -15,9 +15,6 @@ environment:
   # Curriculum factors
   k_0: 0.03
   k_d: 0.997
-  target_speed:
-    low: 0.2
-    up: 1.2
   reward:
     BaseForwardVelocity:
       coeff: 0.75
@@ -26,7 +23,7 @@ environment:
     Work:
       coeff: 0.50
     GroundImpact:
-      coeff: 0.00006
+      coeff: 0.003
     Smoothness:
       coeff: 0.03
     ActionMagnitude:
@@ -40,10 +37,10 @@ environment:
     Slip:
       coeff: 0.4
     AirTime:
-      coeff: 0.0 #0.3
+      coeff: 0.3
       desired_foot_height: 0.07
     Torque:
-      coeff: 0.002
+      coeff: 0.005
     BaseHeight:
       coeff: 4.0
   terrain:
