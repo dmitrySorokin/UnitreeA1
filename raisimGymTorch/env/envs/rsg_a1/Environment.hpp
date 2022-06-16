@@ -99,7 +99,7 @@ public:
         a1_->setGeneralizedForce(Eigen::VectorXd::Zero(gvDim_));
 
         /// MUST BE DONE FOR ALL ENVIRONMENTS
-        obDim_ = 50;  /// convention described on top
+        obDim_ = 49;  /// convention described on top
         actionDim_ = nJoints_;
         actionMean_.setZero(actionDim_);
         actionStd_.setZero(actionDim_);
@@ -118,8 +118,8 @@ public:
             Eigen::VectorXd::Constant(6, 0.0),   // body linear & angular velocity
             Eigen::VectorXd::Constant(12, 0.0),  // joint velocity
             Eigen::VectorXd::Constant(4, 0.0),   // contacts binary vector
-            Eigen::VectorXd::Constant(12, 0.0),  // previous action
-            0.6;
+            Eigen::VectorXd::Constant(12, 0.0);  // previous action
+            //0.6;
 
         obStd_ << 0.01,                          // height
             Eigen::VectorXd::Constant(2, 1.0),   // body roll & pitch
@@ -128,14 +128,13 @@ public:
             1.0 / 2.5, 1.0 / 2.5, 1.0 / 2.5,     // body angular velocity
             Eigen::VectorXd::Constant(12, .01),  // joint velocity
             Eigen::VectorXd::Constant(4, 1.0),   // contacts binary vector
-            Eigen::VectorXd::Constant(12, 1.0),  // previous action
-            0.28;
+            Eigen::VectorXd::Constant(12, 1.0);  // previous action
+            //0.28;
 
 
         groundImpactForces_.setZero();
         previousGroundImpactForces_.setZero();
         previousJointPositions_.setZero(nJoints_);
-        previous2JointPositions_.setZero(nJoints_);
         previousTorque_ = a1_->getGeneralizedForce().e().tail(nJoints_);
 
         /// indices of links that should make contact with ground
@@ -190,15 +189,13 @@ public:
 
     virtual void reset() override {
         // std::cout << "env.reset" << std::endl;
-        resampleEnvironmentalParameters();
         gc_init_[0] = x0Dist_(randomGenerator_);
         gc_init_[1] = y0Dist_(randomGenerator_);
 
         a1_->setState(gc_init_, gv_init_);
 
-        previousJointPositions_ = gc_.tail(nJoints_);
-        previous2JointPositions_ = gc_.tail(nJoints_);
         updateObservation();
+        previousJointPositions_ = gc_.tail(nJoints_);
         steps_ = 0;
 
         // for (const auto& [name, value] : rewards_.getStdMap()) {
@@ -208,6 +205,7 @@ public:
 
         rewards_.reset();
         targetSpeed_ = speedDist_(randomGenerator_);
+        targetSpeed_ = 0.6;
     }
 
     virtual void curriculumUpdate() override {
@@ -233,12 +231,6 @@ public:
             }
         }
 
-        // Record values for next step calculations
-        previousTorque_ = a1_->getGeneralizedForce().e().tail(nJoints_);
-        previous2JointPositions_ = previousJointPositions_;
-        previousJointPositions_ = gc_.tail(nJoints_);
-        previousGroundImpactForces_ = groundImpactForces_;
-
         updateObservation();
 
         rewards_.record("BaseForwardVelocity", 0.6 * calculateBaseForwardVelocityCost());
@@ -257,6 +249,11 @@ public:
         // rewards_.record("ActionMagnitude", -calculateActionMagnitudeCost());
         rewards_.record("ZAcceleration", -calculateZAccelerationCost());
 
+        // Record values for next step calculations
+        previousTorque_ = a1_->getGeneralizedForce().e().tail(nJoints_);
+        previousJointPositions_ = gc_.tail(nJoints_);
+        previousGroundImpactForces_ = groundImpactForces_;
+
         // Apply random force to the COM
         auto applyingForceDecision = decisionDist_(randomGenerator_);
         if (applyingForceDecision < 0.5) {
@@ -270,6 +267,8 @@ public:
             auto externalTorque = 100 * Eigen::VectorXd::Random(3);
             a1_->setExternalTorque(a1_->getBodyIdx("base"), externalTorque);
         }
+
+        resampleEnvironmentalParameters();
 
         ++steps_;
         return rewards_.sum();
@@ -328,16 +327,15 @@ public:
         raisim::quatToEulerVec(&gc_[3], euler_angles);
 
         obDouble_ <<
-            gc_[2] +  normDist_(randomGenerator_) * 0.04,                   // body height 1
-            euler_angles[0] +  normDist_(randomGenerator_) * 0.05,
-            euler_angles[1] +  normDist_(randomGenerator_) * 0.09,                   // body roll & pitch 2
-            gc_.tail(nJoints_) + 0.5 * Eigen::VectorXd::Random(nJoints_),                // joint angles 12
+            gc_[2] +  normDist_(randomGenerator_) * 0.1,                   // body height 1
+            euler_angles[0] +  normDist_(randomGenerator_) * 0.1,
+            euler_angles[1] +  normDist_(randomGenerator_) * 0.1,                   // body roll & pitch 2
+            gc_.tail(nJoints_) + 0.40 * Eigen::VectorXd::Random(nJoints_),                // joint angles 12
             bodyLinearVelocityNoised,          // body linear 3
             bodyAngularVelocityNoised,         // angular velocity 3
             velocitiesNoised,                  // joint velocity 12
             contacts,                          // contacts binary vector 4
-            previousJointPositions_,           // previous action 12
-            targetSpeed_;
+            previousJointPositions_  + 0.40 * Eigen::VectorXd::Random(nJoints_);           // previous action 12
     }
 
     virtual void observe(Eigen::Ref<EigenVec> ob) override {
@@ -373,7 +371,6 @@ private:
     Eigen::Vector3d bodyLinearVel_, bodyAngularVel_;
     Eigen::Vector4d groundImpactForces_;
     Eigen::VectorXd previousJointPositions_;
-    Eigen::VectorXd previous2JointPositions_;
     Eigen::VectorXd previousTorque_;
     Eigen::Vector4d previousGroundImpactForces_;
 
@@ -412,6 +409,10 @@ private:
 
 private:
     void resampleEnvironmentalParameters() {
+        if (decisionDist_(randomGenerator_) > 0.004)  {
+            return;
+        }
+
         // std::cout << "Resampling enviroment parameters: " << std::endl;
 
         // Center Of Mass
