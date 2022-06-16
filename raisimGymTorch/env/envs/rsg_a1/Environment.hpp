@@ -221,21 +221,23 @@ public:
 
         updateObservation();
 
-        rewards_.record("BaseForwardVelocity", 0.6 * calculateBaseForwardVelocityCost());
+
+        rewards_.record("BaseForwardVelocity", calculateBaseForwardVelocityCost());
         rewards_.record("BaseLateralAndRotation", -calculateBaseLateralAndRotationCost());
-        rewards_.record("BaseHeight", -0.25 * calculateBaseHeightCost());
-        rewards_.record("Torque", -0.25 * calculateTorqueCost());
-        rewards_.record("JointSpeed", -0.25 * 0.36 * calculateJointSpeedCost());
+        rewards_.record("BaseHeight", -0.25*calculateBaseHeightCost());
+        // rewards_.record("Torque", -0.25*calculateTorqueCost());
+        rewards_.record("JointSpeed", -0.25*calculateJointSpeedCost());
         rewards_.record("AirTime", calculateAirTimeCost());
-        rewards_.record("Slip", -0.25 * 0.36 * calculateSlipCost());
-        rewards_.record("Orientation", -0.25 * calculateOrientationCost());
-        rewards_.record("Smoothness", -0.25 * calculateSmoothnessCost());
+        rewards_.record("Slip", -0.25*calculateSlipCost());
+        rewards_.record("Orientation", -0.25*calculateOrientationCost());
+        rewards_.record("Smoothness", -0.25*calculateSmoothnessCost());
 
         // New terms
-        rewards_.record("Work", -0.25 * calculateWorkCost());
-        rewards_.record("GroundImpact", -0.25 * 0.36 * calculateGroundImpactCost());
-        // rewards_.record("ActionMagnitude", -calculateActionMagnitudeCost());
-        rewards_.record("ZAcceleration", -calculateZAccelerationCost());
+        rewards_.record("Work", -0.25*calculateWorkCost());
+        rewards_.record("GroundImpact", -0.25*calculateGroundImpactCost());
+        //rewards_.record("ActionMagnitude", -calculateActionMagnitudeCost());
+        //rewards_.record("ZAcceleration", -calculateZAccelerationCost());
+
 
         // Record values for next step calculations
         previousTorque_ = a1_->getGeneralizedForce().e().tail(nJoints_);
