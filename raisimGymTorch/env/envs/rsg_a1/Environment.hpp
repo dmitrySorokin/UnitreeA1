@@ -169,6 +169,8 @@ public:
             cfg["target_speed"]["up"].template As<double>()
         );
 
+        normDist_ =  std::normal_distribution<>(0, 1);
+
         initialActuationUpperLimits_ = a1_->getActuationUpperLimits().e().tail(nJoints_);
         initialActuationLowerLimits_ = a1_->getActuationLowerLimits().e().tail(nJoints_);
 
@@ -325,9 +327,11 @@ public:
         double euler_angles[3];
         raisim::quatToEulerVec(&gc_[3], euler_angles);
 
-        obDouble_ << gc_[2],                   // body height 1
-            euler_angles[0], euler_angles[1],  // body roll & pitch 2
-            gc_.tail(nJoints_),                // joint angles 12
+        obDouble_ <<
+            gc_[2] +  normDist_(randomGenerator_) * 0.04,                   // body height 1
+            euler_angles[0] +  normDist_(randomGenerator_) * 0.05,
+            euler_angles[1] +  normDist_(randomGenerator_) * 0.09,                   // body roll & pitch 2
+            gc_.tail(nJoints_) + 0.5 * Eigen::VectorXd::Random(nJoints_),                // joint angles 12
             bodyLinearVelocityNoised,          // body linear 3
             bodyAngularVelocityNoised,         // angular velocity 3
             velocitiesNoised,                  // joint velocity 12
@@ -392,6 +396,8 @@ private:
     std::uniform_real_distribution<double> motorStrengthDist_;
 
     std::uniform_real_distribution<double> speedDist_;
+
+    std::normal_distribution<> normDist_;
 
     Eigen::VectorXd initialActuationUpperLimits_;
     Eigen::VectorXd initialActuationLowerLimits_;
