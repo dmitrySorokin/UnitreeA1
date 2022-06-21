@@ -51,6 +51,7 @@ public:
 
         // Terrain
         // auto ground = world_->addGround(); // Flat terrain
+
         raisim::TerrainProperties terrainProperties;  // Randomized terrain
         terrainProperties.frequency = cfg["terrain"]["frequency"].template As<double>();
         terrainProperties.zScale = cfg["terrain"]["zScale"].template As<double>();
@@ -104,6 +105,7 @@ public:
         actionMean_.setZero(actionDim_);
         actionStd_.setZero(actionDim_);
         obDouble_.setZero(obDim_);
+        obSim_.setZero(obDim_);
         obMean_.setZero(obDim_);
         obStd_.setZero(obDim_);
 
@@ -130,7 +132,6 @@ public:
             Eigen::VectorXd::Constant(4, 1.0),   // contacts binary vector
             Eigen::VectorXd::Constant(12, 1.0);  // previous action
             //0.28;
-
 
         groundImpactForces_.setZero();
         previousGroundImpactForces_.setZero();
@@ -169,6 +170,7 @@ public:
         );
 
         normDist_ =  std::normal_distribution<>(0, 1);
+        uniformDist_ = std::uniform_real_distribution<double>(-1.0, 1.0);
 
         initialActuationUpperLimits_ = a1_->getActuationUpperLimits().e().tail(nJoints_);
         initialActuationLowerLimits_ = a1_->getActuationLowerLimits().e().tail(nJoints_);
@@ -188,11 +190,41 @@ public:
     }
 
     virtual void reset() override {
+        // out << "reset" << std::endl;
         // std::cout << "env.reset" << std::endl;
         gc_init_[0] = x0Dist_(randomGenerator_);
         gc_init_[1] = y0Dist_(randomGenerator_);
 
+        //gc_init_[3] = 0.2 * uniformDist_(randomGenerator_);
+        //gc_init_[4] = 0.2 * uniformDist_(randomGenerator_);
+        //gc_init_[5] = 0.2 * uniformDist_(randomGenerator_);
+        //gc_init_[6] = 0.2 * uniformDist_(randomGenerator_);
+
+        for (int i = 0; i < 12; ++i) {
+            gc_init_[7 + i] =  0.2 * uniformDist_(randomGenerator_);
+            gv_init_[6 + i] =  2.5 * uniformDist_(randomGenerator_);
+        }
+
+        gv_init_[0] = uniformDist_(randomGenerator_);
+        gv_init_[1] = 0.5 * uniformDist_(randomGenerator_);
+        gv_init_[2] = 0.5 * uniformDist_(randomGenerator_);
+
+        gv_init_[3] = 0.7 * uniformDist_(randomGenerator_);
+        gv_init_[4] = 0.7 * uniformDist_(randomGenerator_);
+        gv_init_[5] = 0.7 * uniformDist_(randomGenerator_);
+
+        auto quat = Eigen::Vector4d::Random(4);
+
+        double norm = quat.norm();
+        gc_init_[3] = 0.2 * quat[0] / norm;
+        gc_init_[4] = 0.2 * quat[1] / norm;
+        gc_init_[5] = 0.2 * quat[2] / norm;
+        gc_init_[6] = 0.2 * quat[3] / norm;
+
         a1_->setState(gc_init_, gv_init_);
+
+        inp_.clear();
+        inp_.seekg(0);
 
         updateObservation();
         previousJointPositions_ = gc_.tail(nJoints_);
@@ -217,6 +249,22 @@ public:
         Eigen::VectorXd pTarget12 = action.cast<double>();
         // pTarget12 = pTarget12.cwiseMin(1).cwiseMax(-1);
         pTarget12 = actionMean_ + pTarget12.cwiseProduct(actionStd_);
+
+        /// convert it to float
+        //for (int i = 0; i < 49; ++i) {
+        //    out << obSim_[i] << ";";
+        //}
+        //for (int i = 0; i < 11; ++i) {
+        //    out << pTarget12[i] << " ";
+        //}
+        //out << pTarget12[11] << std::endl << std::flush;
+/*
+        std::cout << "act: ";
+        for (int i = 0; i < 12; ++i) {
+            std::cout << pTarget12[i] << " ";
+        }
+        std::cout << std::endl;
+*/
         pTarget_.tail(nJoints_) = pTarget12;
 
         a1_->setPdTarget(pTarget_, vTarget_);
@@ -326,16 +374,34 @@ public:
         double euler_angles[3];
         raisim::quatToEulerVec(&gc_[3], euler_angles);
 
-        obDouble_ <<
-            gc_[2] +  normDist_(randomGenerator_) * 0.1 * k_c,                   // body height 1
-            euler_angles[0] +  normDist_(randomGenerator_) * 0.1 * k_c,
-            euler_angles[1] +  normDist_(randomGenerator_) * 0.1 * k_c,                   // body roll & pitch 2
-            gc_.tail(nJoints_) + 0.40 * Eigen::VectorXd::Random(nJoints_) * k_c,                // joint angles 12
+        Eigen::VectorXd dat;
+        dat.setZero(49);
+
+        for (int i = 0; i < 49; ++i) {
+            inp_ >> dat[i];
+        }
+
+        obDouble_ << dat;
+        for (int i = 0; i < 12; ++i) {
+            obDouble_[48 - 12 + i + 1] = previousJointPositions_[i];
+        }
+
+        for (int i = 0; i < 12; ++i) {
+            inp_ >> dat[i];
+        }
+
+        obSim_ <<
+            gc_[2],                   // body height 1
+            euler_angles[0],
+            euler_angles[1],                   // body roll & pitch 2
+            gc_.tail(nJoints_),                // joint angles 12
             bodyLinearVelocityNoised,          // body linear 3
             bodyAngularVelocityNoised,         // angular velocity 3
             velocitiesNoised,                  // joint velocity 12
             contacts,                          // contacts binary vector 4
-            previousJointPositions_  + 0.40 * Eigen::VectorXd::Random(nJoints_) * k_c;           // previous action 12
+            previousJointPositions_;           // previous action 12
+
+        obDouble_ = obSim_;
     }
 
     virtual void observe(Eigen::Ref<EigenVec> ob) override {
@@ -347,13 +413,14 @@ public:
         // Terminal condition
         double euler_angles[3];
         raisim::quatToEulerVec(&gc_[3], euler_angles);
-        if (gc_[2] < 0.28 || fabs(euler_angles[0]) > 0.4 || fabs(euler_angles[1]) > 0.2) {
-            terminalReward = float(terminalRewardCoeff_);
-            return true;
-        }
 
         if (steps_ == maxSteps_) {
             terminalReward = 0;
+            return true;
+        }
+
+        if (gc_[2] < 0.28 ) {
+            terminalReward = float(terminalRewardCoeff_);
             return true;
         }
 
@@ -367,7 +434,7 @@ private:
     raisim::ArticulatedSystem* a1_;
     Eigen::VectorXd gc_init_, gv_init_, gc_, gv_, pTarget_, vTarget_;
     double terminalRewardCoeff_ = -10.;
-    Eigen::VectorXd actionMean_, actionStd_, obDouble_, obMean_, obStd_;
+    Eigen::VectorXd actionMean_, actionStd_, obDouble_, obMean_, obStd_, obSim_;
     Eigen::Vector3d bodyLinearVel_, bodyAngularVel_;
     Eigen::Vector4d groundImpactForces_;
     Eigen::VectorXd previousJointPositions_;
@@ -391,8 +458,10 @@ private:
     std::uniform_real_distribution<double> kdDist_;
     std::uniform_real_distribution<double> comDist_;
     std::uniform_real_distribution<double> motorStrengthDist_;
+    std::uniform_real_distribution<double> uniformDist_;
 
     std::uniform_real_distribution<double> speedDist_;
+    std::ifstream inp_ = std::ifstream("dat.txt");
 
     std::normal_distribution<> normDist_;
 
@@ -404,8 +473,10 @@ private:
     std::array<bool, 4> footContactState_;
     std::unordered_map<int, int> contactSequentialIndex_;
 
-    int maxSteps_ = 3500;
+    int maxSteps_ = 300;
     int steps_ = 0;
+
+    std::ofstream out = std::ofstream("sim_log.txt");
 
 private:
     void resampleEnvironmentalParameters() {
