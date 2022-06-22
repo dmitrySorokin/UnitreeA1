@@ -51,11 +51,17 @@ public:
     }
 
     float sum() {
-        float sum = 0.f;
+        double rpos = 0;
+        double rneg = 0;
         for (auto& rw : rewards_) {
-            sum += rw.second.reward;
+            double value = rw.second.reward;
+            if (value >= 0) {
+                rpos += value;
+            } else {
+                rneg += value;
+            }
         }
-        return sum;
+        return rpos * std::exp(0.2 * rneg);
     }
 
     void reset() {
