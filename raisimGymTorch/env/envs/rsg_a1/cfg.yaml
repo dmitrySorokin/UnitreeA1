@@ -27,7 +27,7 @@ environment:
       coeff: -0.08
     jointTorque:
       coeff: -0.0006
-      jointSpeed:
+    jointSpeed:
         coeff: -0.0006
     baseMotion:
       coeff: -1.5
