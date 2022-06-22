@@ -20,7 +20,7 @@ environment:
     up: 1.2
   reward:
     BaseForwardVelocity:
-      coeff: 0.75
+      coeff: 3.0 
     BaseLateralAndRotation:
       coeff: 0.9
     Work:
