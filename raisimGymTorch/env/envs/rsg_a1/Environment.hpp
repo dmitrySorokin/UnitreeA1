@@ -280,6 +280,7 @@ public:
         rewards_.record("jointTorque", jointTorqueCost());
         rewards_.record("jointSpeed", jointSpeedCost());
         rewards_.record("footClearance", footClearanceCost());
+        rewards_.record("height", heightCost());
 
         // Record values for next step calculations
         previousTorque_ = a1_->getGeneralizedForce().e().tail(nJoints_);
@@ -559,6 +560,10 @@ private:
         }
 
         return footClearanceCost;
+    }
+
+    inline double heightCost() {
+        return (gc_[2] - gc_init_[2]) * (gc_[2] - gc_init_[2]);
     }
 
     inline double calculateOrientationCost() {

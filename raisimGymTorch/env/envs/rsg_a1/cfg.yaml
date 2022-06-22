@@ -33,6 +33,8 @@ environment:
       coeff: -1.5
     footClearance:
       coeff: -15.0
+    height:
+      coeff: -1.0
   terrain:
     frequency: 1.0
     zScale: 0.2
