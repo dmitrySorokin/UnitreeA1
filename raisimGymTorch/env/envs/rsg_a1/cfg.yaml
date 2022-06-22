@@ -21,16 +21,16 @@ environment:
   reward:
     linearVelocity:
       coeff: 3.0
-    baseMotion:
-      coeff: -1.5
     angularVelocity:
       coeff: 3.0
     footSlip:
       coeff: -0.08
     jointTorque:
-      coeff: 0.002
-    jointSpeed:
-      coeff: 0.006
+      coeff: -0.0006
+      jointSpeed:
+        coeff: -0.0006
+    baseMotion:
+      coeff: -1.5
   terrain:
     frequency: 1.0
     zScale: 0.2
