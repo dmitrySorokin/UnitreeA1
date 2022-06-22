@@ -189,19 +189,19 @@ public:
         gc_init_[1] = y0Dist_(randomGenerator_);
 
         for (int i = 0; i < 12; ++i) {
-            gc_init_[7 + i] =  0.2 * uniformDist_(randomGenerator_);
-            gv_init_[6 + i] =  2.5 * uniformDist_(randomGenerator_);
+            gc_init_[7 + i] =  k_c * 0.2 * uniformDist_(randomGenerator_);
+            gv_init_[6 + i] =  k_c * 2.5 * uniformDist_(randomGenerator_);
         }
 
-        gv_init_[0] = uniformDist_(randomGenerator_);
-        gv_init_[1] = 0.5 * uniformDist_(randomGenerator_);
-        gv_init_[2] = 0.5 * uniformDist_(randomGenerator_);
+        gv_init_[0] = k_c * uniformDist_(randomGenerator_);
+        gv_init_[1] = k_c * 0.5 * uniformDist_(randomGenerator_);
+        gv_init_[2] = k_c * 0.5 * uniformDist_(randomGenerator_);
 
-        gv_init_[3] = 0.7 * uniformDist_(randomGenerator_);
-        gv_init_[4] = 0.7 * uniformDist_(randomGenerator_);
-        gv_init_[5] = 0.7 * uniformDist_(randomGenerator_);
+        gv_init_[3] = k_c * 0.7 * uniformDist_(randomGenerator_);
+        gv_init_[4] = k_c * 0.7 * uniformDist_(randomGenerator_);
+        gv_init_[5] = k_c * 0.7 * uniformDist_(randomGenerator_);
 
-        Eigen::Vector4d quat = Eigen::Vector4d{1.0, 0.0, 0.0, 0.0} + 0.2 * Eigen::Vector4d::Random(4);
+        Eigen::Vector4d quat = Eigen::Vector4d{1.0, 0.0, 0.0, 0.0} + k_c * 0.2 * Eigen::Vector4d::Random(4);
 
         double norm = quat.norm();
         gc_init_[3] = quat[0] / norm;
