@@ -279,6 +279,7 @@ public:
         rewards_.record("footSlip", footSlipCost());
         rewards_.record("jointTorque", jointTorqueCost());
         rewards_.record("jointSpeed", jointSpeedCost());
+        rewards_.record("footClearance", footClearanceCost());
 
         // Record values for next step calculations
         previousTorque_ = a1_->getGeneralizedForce().e().tail(nJoints_);
@@ -540,24 +541,24 @@ private:
         return footSlipCost;
     }
 
-    inline double airTimeCost() {
+    inline double footClearanceCost() {
         auto p_f_hat = cfg_["reward"]["airTime"]["desired_foot_height"].template As<double>();
 
-        double footAirTimeCost = 0.0;
+        double footClearanceCost = 0.0;
         for (auto footBodyIndex : contactIndices_) {
             raisim::Vec<3> pos, vel;
             a1_->getPosition(footBodyIndex, pos);
             a1_->getVelocity(footBodyIndex, vel);
 
             // We only use xy velocity components
-            vel[2] = 0.0;
+            double velnorm = std::pow(vel[0] * vel[0] + vel[1] * vel[1], 0.25);
 
             if (!footContactState_[contactSequentialIndex_[footBodyIndex]]) {
-                footAirTimeCost += (p_f_hat - pos[2]) * (p_f_hat - pos[2]) * vel.squaredNorm();
+                footClearanceCost += (p_f_hat - pos[2]) * (p_f_hat - pos[2]) * velnorm;
             }
         }
 
-        return k_c * footAirTimeCost;
+        return footClearanceCost;
     }
 
     inline double calculateOrientationCost() {
