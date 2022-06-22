@@ -437,7 +437,7 @@ private:
     std::array<bool, 4> footContactState_;
     std::unordered_map<int, int> contactSequentialIndex_;
 
-    int maxSteps_ = 300;
+    int maxSteps_ = 3500;
     int steps_ = 0;
 
     std::ofstream out = std::ofstream("sim_log.txt");
