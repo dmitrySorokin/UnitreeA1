@@ -81,6 +81,7 @@ public:
         // Generate robot initial pose
         x0Dist_ = std::uniform_real_distribution<double>(-1, 1);
         y0Dist_ = std::uniform_real_distribution<double>(-1, 1);
+        uniformDist_ = std::uniform_real_distribution<double>(-1, 1);
 
         /// this is nominal standing configuration of unitree A1
         // P_x, P_y, P_z, 1.0, A_x, A_y, A_z, FR_hip, FR_thigh, FR_calf, FL_hip, FL_thigh, FL_calf,
@@ -99,7 +100,7 @@ public:
         a1_->setGeneralizedForce(Eigen::VectorXd::Zero(gvDim_));
 
         /// MUST BE DONE FOR ALL ENVIRONMENTS
-        obDim_ = 51;  /// convention described on top
+        obDim_ = 49;  /// convention described on top
         actionDim_ = nJoints_;
         actionMean_.setZero(actionDim_);
         actionStd_.setZero(actionDim_);
@@ -118,9 +119,7 @@ public:
             Eigen::VectorXd::Constant(6, 0.0),   // body linear & angular velocity
             Eigen::VectorXd::Constant(12, 0.0),  // joint velocity
             Eigen::VectorXd::Constant(4, 0.0),   // contacts binary vector
-            Eigen::VectorXd::Constant(12, 0.0),  // previous action
-            0.6,
-            0.6
+            Eigen::VectorXd::Constant(12, 0.0);  // previous action
 
         obStd_ << 0.01,                          // height
             Eigen::VectorXd::Constant(2, 1.0),   // body roll & pitch
@@ -129,9 +128,7 @@ public:
             1.0 / 2.5, 1.0 / 2.5, 1.0 / 2.5,     // body angular velocity
             Eigen::VectorXd::Constant(12, .01),  // joint velocity
             Eigen::VectorXd::Constant(4, 1.0),   // contacts binary vector
-            Eigen::VectorXd::Constant(12, 1.0),  // previous action
-            0.28,
-            0.28
+            Eigen::VectorXd::Constant(12, 1.0);  // previous action
 
         groundImpactForces_.setZero();
         previousGroundImpactForces_.setZero();
@@ -188,12 +185,33 @@ public:
     }
 
     virtual void reset() override {
-        // std::cout << "env.reset" << std::endl;
-        resampleEnvironmentalParameters();
         gc_init_[0] = x0Dist_(randomGenerator_);
         gc_init_[1] = y0Dist_(randomGenerator_);
 
+        for (int i = 0; i < 12; ++i) {
+            gc_init_[7 + i] =  0.2 * uniformDist_(randomGenerator_);
+            gv_init_[6 + i] =  2.5 * uniformDist_(randomGenerator_);
+        }
+
+        gv_init_[0] = uniformDist_(randomGenerator_);
+        gv_init_[1] = 0.5 * uniformDist_(randomGenerator_);
+        gv_init_[2] = 0.5 * uniformDist_(randomGenerator_);
+
+        gv_init_[3] = 0.7 * uniformDist_(randomGenerator_);
+        gv_init_[4] = 0.7 * uniformDist_(randomGenerator_);
+        gv_init_[5] = 0.7 * uniformDist_(randomGenerator_);
+
+        Eigen::Vector4d quat = Eigen::Vector4d{1.0, 0.0, 0.0, 0.0} + 0.2 * Eigen::Vector4d::Random(4);
+
+        double norm = quat.norm();
+        gc_init_[3] = quat[0] / norm;
+        gc_init_[4] = quat[1] / norm;
+        gc_init_[5] = quat[2] / norm;
+        gc_init_[6] = quat[3] / norm;
+
         a1_->setState(gc_init_, gv_init_);
+        // std::cout << "env.reset" << std::endl;
+        resampleEnvironmentalParameters();
 
         previousJointPositions_ = gc_.tail(nJoints_);
         previous2JointPositions_ = gc_.tail(nJoints_);
@@ -206,10 +224,6 @@ public:
         // std::cout << "----------\n\n";
 
         rewards_.reset();
-        targetSpeed_ = speedDist_(randomGenerator_);
-        if (decisionDist_(randomGenerator_) < 0.5) {
-            targetSpeed_ = -targetSpeed_;
-        }
     }
 
     virtual void curriculumUpdate() override {
@@ -338,12 +352,6 @@ public:
             velocitiesNoised,                  // joint velocity 12
             contacts,                          // contacts binary vector 4
             previousJointPositions_;           // previous action 12
-
-        if (targetSpeed_ > 0) {
-            obDouble_ << targetSpeed_,  0;
-        } else {
-            obDouble_ << 0, -targetSpeed_;
-        }
     }
 
     virtual void observe(Eigen::Ref<EigenVec> ob) override {
@@ -392,6 +400,7 @@ private:
     std::random_device randomGenerator_;
     std::uniform_real_distribution<double> x0Dist_;
     std::uniform_real_distribution<double> y0Dist_;
+    std::uniform_real_distribution<double> uniformDist_;
 
     // Random stuff for environmental parameters
     std::uniform_real_distribution<double> decisionDist_;
