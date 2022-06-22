@@ -31,7 +31,7 @@ environment:
         coeff: -0.0006
     baseMotion:
       coeff: -1.5
-    footClearanceCost:
+    footClearance:
       coeff: -15.0
   terrain:
     frequency: 1.0
