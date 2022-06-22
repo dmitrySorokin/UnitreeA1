@@ -280,7 +280,6 @@ public:
         rewards_.record("jointTorque", jointTorqueCost());
         rewards_.record("jointSpeed", jointSpeedCost());
         rewards_.record("footClearance", footClearanceCost());
-        rewards_.record("height", heightCost());
 
         // Record values for next step calculations
         previousTorque_ = a1_->getGeneralizedForce().e().tail(nJoints_);
@@ -553,17 +552,10 @@ private:
 
             // We only use xy velocity components
             double velnorm = std::pow(vel[0] * vel[0] + vel[1] * vel[1], 0.25);
-
-            if (!footContactState_[contactSequentialIndex_[footBodyIndex]]) {
-                footClearanceCost += (p_f_hat - pos[2]) * (p_f_hat - pos[2]) * velnorm;
-            }
+            footClearanceCost += (p_f_hat - pos[2]) * (p_f_hat - pos[2]) * velnorm;
         }
 
         return footClearanceCost;
-    }
-
-    inline double heightCost() {
-        return (gc_[2] - gc_init_[2]) * (gc_[2] - gc_init_[2]);
     }
 
     inline double calculateOrientationCost() {
