@@ -324,15 +324,21 @@ public:
         double euler_angles[3];
         raisim::quatToEulerVec(&gc_[3], euler_angles);
 
-        obDouble_ << gc_[2],                   // body height 1
-            euler_angles[0],
-            euler_angles[1],  // body roll & pitch 2
-            gc_.tail(nJoints_),                // joint angles 12
+        for (int i = 0; i < 4; ++i) {
+            if (decisionDist_(randomGenerator_) < 0.3) {
+                contacts[i] = 1 - contacts[i];
+            }
+        }
+
+        obDouble_ << gc_[2] + 0.1 * uniformDist_(randomGenerator_),                   // body height 1
+            euler_angles[0] + 0.1 * uniformDist_(randomGenerator_),
+            euler_angles[1] + 0.1 * uniformDist_(randomGenerator_),  // body roll & pitch 2
+            gc_.tail(nJoints_) + 0.05 * Eigen::VectorXd::Random(nJoints_),                // joint angles 12
             bodyLinearVelocityNoised,          // body linear 3
             bodyAngularVelocityNoised,         // angular velocity 3
             velocitiesNoised,                  // joint velocity 12
             contacts,                          // contacts binary vector 4
-            previousJointPositions_;          // previous action 12
+            previousJointPositions_ + 0.05 * Eigen::VectorXd::Random(nJoints_);          // previous action 12
     }
 
     virtual void observe(Eigen::Ref<EigenVec> ob) override {
