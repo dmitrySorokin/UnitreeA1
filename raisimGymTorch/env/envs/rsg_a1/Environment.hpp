@@ -309,6 +309,31 @@ public:
 
     void updateObservation() {
         a1_->getState(gc_, gv_);
+
+        const double k = 0.1;
+
+        for (int i = 0; i < 12; ++i) {
+            gc_[7 + i] +=  k * 0.2 * uniformDist_(randomGenerator_);
+            gv_[6 + i] +=  k * 2.5 * uniformDist_(randomGenerator_);
+        }
+
+        gv_[0] += k * uniformDist_(randomGenerator_);
+        gv_[1] += k * 0.5 * uniformDist_(randomGenerator_);
+        gv_[2] += k * 0.5 * uniformDist_(randomGenerator_);
+
+        gv_[3] += k * 0.7 * uniformDist_(randomGenerator_);
+        gv_[4] += k * 0.7 * uniformDist_(randomGenerator_);
+        gv_[5] += k * 0.7 * uniformDist_(randomGenerator_);
+
+        Eigen::Vector4d qt = Eigen::Vector4d{gc_[3], gc_[4], gc_[5], gc_[6]} + k * 0.2 * Eigen::Vector4d::Random(4);
+
+        double norm = qt.norm();
+        gc_[3] += qt[0] / norm;
+        gc_[4] += qt[1] / norm;
+        gc_[5] += qt[2] / norm;
+        gc_[6] += qt[3] / norm;
+
+
         raisim::Vec<4> quat = {gc_[3], gc_[4], gc_[5], gc_[6]};
         raisim::Mat<3, 3> rot;
         raisim::quatToRotMat(quat, rot);
@@ -318,7 +343,7 @@ public:
         Eigen::VectorXd contacts;
         contacts.setZero(footContactState_.size());
         for (auto& fs : footContactState_) {
-            fs = false;
+            fs = false; 
         }
         groundImpactForces_.setZero();
 
@@ -422,7 +447,7 @@ private:
     std::array<bool, 4> footContactState_;
     std::unordered_map<int, int> contactSequentialIndex_;
 
-    int maxSteps_ = 3500;
+    int maxSteps_ = 300;
     int steps_ = 0;
 
 private:
