@@ -188,29 +188,6 @@ public:
         gc_init_[0] = x0Dist_(randomGenerator_);
         gc_init_[1] = y0Dist_(randomGenerator_);
 
-        const double k = 1.0;
-
-        for (int i = 0; i < 12; ++i) {
-            gc_init_[7 + i] +=  k * 0.2 * uniformDist_(randomGenerator_);
-            gv_init_[6 + i] +=  k * 2.5 * uniformDist_(randomGenerator_);
-        }
-
-        gv_init_[0] += k * uniformDist_(randomGenerator_);
-        gv_init_[1] += k * 0.5 * uniformDist_(randomGenerator_);
-        gv_init_[2] += k * 0.5 * uniformDist_(randomGenerator_);
-
-        gv_init_[3] += k * 0.7 * uniformDist_(randomGenerator_);
-        gv_init_[4] += k * 0.7 * uniformDist_(randomGenerator_);
-        gv_init_[5] += k * 0.7 * uniformDist_(randomGenerator_);
-
-        Eigen::Vector4d quat = Eigen::Vector4d{gc_init_[3], gc_init_[4], gc_init_[5], gc_init_[6]} + k * 0.2 * Eigen::Vector4d::Random(4);
-
-        double norm = quat.norm();
-        gc_init_[3] = quat[0] / norm;
-        gc_init_[4] = quat[1] / norm;
-        gc_init_[5] = quat[2] / norm;
-        gc_init_[6] = quat[3] / norm;
-
         a1_->setState(gc_init_, gv_init_);
         // std::cout << "env.reset" << std::endl;
         resampleEnvironmentalParameters();
@@ -310,31 +287,6 @@ public:
     void updateObservation() {
         a1_->getState(gc_, gv_);
 
-
-        const double k = 1.0;
-
-        for (int i = 0; i < 12; ++i) {
-            gc_[7 + i] +=  k * 0.2 * uniformDist_(randomGenerator_);
-            gv_[6 + i] +=  k * 2.5 * uniformDist_(randomGenerator_);
-        }
-
-        gv_[0] += k * uniformDist_(randomGenerator_);
-        gv_[1] += k * 0.5 * uniformDist_(randomGenerator_);
-        gv_[2] += k * 0.5 * uniformDist_(randomGenerator_);
-
-        gv_[3] += k * 0.7 * uniformDist_(randomGenerator_);
-        gv_[4] += k * 0.7 * uniformDist_(randomGenerator_);
-        gv_[5] += k * 0.7 * uniformDist_(randomGenerator_);
-
-        Eigen::Vector4d qt = Eigen::Vector4d{gc_[3], gc_[4], gc_[5], gc_[6]} + k * 0.2 * Eigen::Vector4d::Random(4);
-
-        double norm = qt.norm();
-        gc_[3] = qt[0] / norm;
-        gc_[4] = qt[1] / norm;
-        gc_[5] = qt[2] / norm;
-        gc_[6] = qt[3] / norm;
-
-
         raisim::Vec<4> quat = {gc_[3], gc_[4], gc_[5], gc_[6]};
         raisim::Mat<3, 3> rot;
         raisim::quatToRotMat(quat, rot);
@@ -372,14 +324,15 @@ public:
         double euler_angles[3];
         raisim::quatToEulerVec(&gc_[3], euler_angles);
 
-        obDouble_ << gc_[2],                   // body height 1
-            euler_angles[0], euler_angles[1],  // body roll & pitch 2
-            gc_.tail(nJoints_),                // joint angles 12
+        obDouble_ << gc_[2] + 0.1 * uniformDist_(randomGenerator_),                   // body height 1
+            euler_angles[0] + 0.1 * uniformDist_(randomGenerator_),
+            euler_angles[1] + 0.1 * uniformDist_(randomGenerator_),  // body roll & pitch 2
+            gc_.tail(nJoints_) + 0.5 * Eigen::VectorXd::Random(nJoints_),                // joint angles 12
             bodyLinearVelocityNoised,          // body linear 3
             bodyAngularVelocityNoised,         // angular velocity 3
             velocitiesNoised,                  // joint velocity 12
             contacts,                          // contacts binary vector 4
-            previousJointPositions_;           // previous action 12
+            previousJointPositions_ + 0.5 * Eigen::VectorXd::Random(nJoints_);          // previous action 12
     }
 
     virtual void observe(Eigen::Ref<EigenVec> ob) override {
