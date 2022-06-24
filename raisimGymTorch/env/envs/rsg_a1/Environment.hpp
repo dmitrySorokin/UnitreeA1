@@ -325,14 +325,14 @@ public:
         raisim::quatToEulerVec(&gc_[3], euler_angles);
 
         for (int i = 0; i < 4; ++i) {
-            if (decisionDist_(randomGenerator_) < 0.3) {
+            if (decisionDist_(randomGenerator_) < 0.2) {
                 contacts[i] = 1 - contacts[i];
             }
         }
 
-        obDouble_ << gc_[2] + 0.1 * uniformDist_(randomGenerator_),                   // body height 1
-            euler_angles[0] + 0.1 * uniformDist_(randomGenerator_),
-            euler_angles[1] + 0.1 * uniformDist_(randomGenerator_),  // body roll & pitch 2
+        obDouble_ << gc_[2],                   // body height 1
+            euler_angles[0],
+            euler_angles[1],  // body roll & pitch 2
             gc_.tail(nJoints_) + 0.05 * Eigen::VectorXd::Random(nJoints_),                // joint angles 12
             bodyLinearVelocityNoised,          // body linear 3
             bodyAngularVelocityNoised,         // angular velocity 3
