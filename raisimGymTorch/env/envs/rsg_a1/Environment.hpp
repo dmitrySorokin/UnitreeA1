@@ -85,10 +85,9 @@ public:
 
         /// this is nominal standing configuration of unitree A1
         // P_x, P_y, P_z, 1.0, A_x, A_y, A_z, FR_hip, FR_thigh, FR_calf, FL_hip, FL_thigh, FL_calf,
-        // RR_hip, RR_thigh, RR_calf, RL_hip, RL_thigh, RL_calf. gc_init_ << 0.0, 0.0, 0.39, 1.0,
-        // 0.0, 0.0, 0.0, 0.06, 0.6, -1.2, -0.06, 0.6, -1.2, 0.06, 0.6, -1.2, -0.06, 0.6, -1.2;
-        gc_init_ << 0.0, 0.0, 0.45, 1.0, 0.0, 0.0, 0.0,
-            0.06, 0.6, -1.2, -0.06, 0.6, -1.2, 0.06, 0.6, -1.2, -0.06, 0.6, -1.2;
+        // RR_hip, RR_thigh, RR_calf, RL_hip, RL_thigh, RL_calf.
+        // gc_init_ << 0.0, 0.0, 0.39, 1.0, 0.0, 0.0, 0.0, 0.06, 0.6, -1.2, -0.06, 0.6, -1.2, 0.06, 0.6, -1.2, -0.06, 0.6, -1.2;
+        gc_init_ << 0.0, 0.0, 0.45, 1.0, 0.0, 0.0, 0.0, 0.06, 0.6, -1.2, -0.06, 0.6, -1.2, 0.06, 0.6, -1.2, -0.06, 0.6, -1.2;
 
         /// set pd gains
         Eigen::VectorXd jointPgain(gvDim_), jointDgain(gvDim_);
@@ -133,7 +132,6 @@ public:
         groundImpactForces_.setZero();
         previousGroundImpactForces_.setZero();
         previousJointPositions_.setZero(nJoints_);
-        previous2JointPositions_.setZero(nJoints_);
         previousTorque_ = a1_->getGeneralizedForce().e().tail(nJoints_);
 
         /// indices of links that should make contact with ground
@@ -167,6 +165,8 @@ public:
             cfg["target_speed"]["up"].template As<double>()
         );
 
+        initialActuationUpperLimits_.setZero(nJoints_);
+        initialActuationLowerLimits_.setZero(nJoints_);
         initialActuationUpperLimits_ = a1_->getActuationUpperLimits().e().tail(nJoints_);
         initialActuationLowerLimits_ = a1_->getActuationLowerLimits().e().tail(nJoints_);
 
@@ -185,17 +185,30 @@ public:
     }
 
     virtual void reset() override {
+        // out << "reset\n";
         gc_init_[0] = x0Dist_(randomGenerator_);
         gc_init_[1] = y0Dist_(randomGenerator_);
 
-        a1_->setState(gc_init_, gv_init_);
+        auto curr_gc_init = gc_init_;
+        auto curr_gv_init = gv_init_;
+
+        for (int i = 0; i < 4; ++i) {
+            curr_gc_init[3 + i] += 0.1 * uniformDist_(randomGenerator_);
+        }
+        for (int i = 0; i < 12; ++i) {
+            curr_gc_init[7 + i] += 0.1 * uniformDist_(randomGenerator_);
+        }
+
+        for (int i = 0; i < 18; ++i) {
+            curr_gv_init[i] += 0.1 * uniformDist_(randomGenerator_);
+        }
+
+        a1_->setState(curr_gc_init, curr_gv_init);
+        steps_ = 0;
+        previousJointPositions_ = curr_gc_init.tail(nJoints_);
         // std::cout << "env.reset" << std::endl;
         resampleEnvironmentalParameters();
-
-        previousJointPositions_ = gc_.tail(nJoints_);
-        previous2JointPositions_ = gc_.tail(nJoints_);
         updateObservation();
-        steps_ = 0;
 
         // for (const auto& [name, value] : rewards_.getStdMap()) {
         //     std::cout << name << " " << value << std::endl;
@@ -203,6 +216,9 @@ public:
         // std::cout << "----------\n\n";
 
         rewards_.reset();
+
+        inp.clear();
+        inp.seekg(0);
     }
 
     virtual void curriculumUpdate() override {
@@ -214,7 +230,54 @@ public:
         Eigen::VectorXd pTarget12 = action.cast<double>();
         // pTarget12 = pTarget12.cwiseMin(1).cwiseMax(-1);
         pTarget12 = actionMean_ + pTarget12.cwiseProduct(actionStd_);
+
+/*
+        double tmp;
+        inp >> tmp;
+        gc_[2] = tmp; // height
+
+        double euler1, euler2;
+        inp >> euler1;
+        inp >> euler2;
+
+        raisim::Vec<4> quat;
+        eulerVecToQuat({euler1, euler2, 0}, quat);
+        for (int i = 0; i < 4; ++i) {
+            gc_[3 + i] = quat[i];
+        }
+
+        for (int i = 0; i < 12; ++i) {
+            inp >> tmp;
+            gc_[7 + i] = tmp; // joint angles
+        }
+
+        for (int i = 0; i < 18; ++i) {
+            inp >> tmp;
+            gv_[i] = tmp; // body lin V, body ang V, joint vel
+        }
+
+        for (int i = 0; i < 16; ++i) {
+            inp >> tmp; // contacts, prev action
+        }
+
+        for (int i = 0; i < 12; ++i) {
+            inp >> tmp;
+            //pTarget12[i] = tmp;
+        }
+
+        a1_->setState(gc_, gv_);
+
+
+        for (int i = 0; i < 49; ++i) {
+            out << obDouble_[i] << ";";
+        }
+        for (int i = 0; i < 11; ++i) {
+            out << pTarget12[i] << ";";
+        }
+        out << pTarget12[11] << std::endl << std::flush;
+*/
         pTarget_.tail(nJoints_) = pTarget12;
+
 
         a1_->setPdTarget(pTarget_, vTarget_);
 
@@ -227,12 +290,6 @@ public:
                 server_->unlockVisualizationServerMutex();
             }
         }
-
-        // Record values for next step calculations
-        previousTorque_ = a1_->getGeneralizedForce().e().tail(nJoints_);
-        previous2JointPositions_ = previousJointPositions_;
-        previousJointPositions_ = gc_.tail(nJoints_);
-        previousGroundImpactForces_ = groundImpactForces_;
 
         updateObservation();
 
@@ -251,6 +308,11 @@ public:
         rewards_.record("GroundImpact", -0.25 * 0.36 * calculateGroundImpactCost());
         // rewards_.record("ActionMagnitude", -calculateActionMagnitudeCost());
         rewards_.record("ZAcceleration", -calculateZAccelerationCost());
+
+        // Record values for next step calculations
+        previousTorque_ = a1_->getGeneralizedForce().e().tail(nJoints_);
+        previousJointPositions_ = gc_.tail(nJoints_);
+        previousGroundImpactForces_ = groundImpactForces_;
 
         // Apply random force to the COM
         auto applyingForceDecision = decisionDist_(randomGenerator_);
@@ -324,21 +386,28 @@ public:
         double euler_angles[3];
         raisim::quatToEulerVec(&gc_[3], euler_angles);
 
-        for (int i = 0; i < 4; ++i) {
-            if (decisionDist_(randomGenerator_) < 0.2) {
-                contacts[i] = 1 - contacts[i];
-            }
+/*
+        double tmp;
+        for (int i = 0; i < 49; ++i) {
+            inp >> tmp;
+            obDouble_ << tmp;
         }
 
+        for (int i = 0; i < 12; ++i) {
+            inp >> tmp;
+        }
+
+        return;
+*/
         obDouble_ << gc_[2],                   // body height 1
             euler_angles[0],
             euler_angles[1],  // body roll & pitch 2
-            gc_.tail(nJoints_) + 0.05 * Eigen::VectorXd::Random(nJoints_),                // joint angles 12
+            gc_.tail(nJoints_),                // joint angles 12
             bodyLinearVelocityNoised,          // body linear 3
             bodyAngularVelocityNoised,         // angular velocity 3
             velocitiesNoised,                  // joint velocity 12
             contacts,                          // contacts binary vector 4
-            previousJointPositions_ + 0.05 * Eigen::VectorXd::Random(nJoints_);          // previous action 12
+            previousJointPositions_ ;          // previous action 12
     }
 
     virtual void observe(Eigen::Ref<EigenVec> ob) override {
@@ -374,7 +443,6 @@ private:
     Eigen::Vector3d bodyLinearVel_, bodyAngularVel_;
     Eigen::Vector4d groundImpactForces_;
     Eigen::VectorXd previousJointPositions_;
-    Eigen::VectorXd previous2JointPositions_;
     Eigen::VectorXd previousTorque_;
     Eigen::Vector4d previousGroundImpactForces_;
 
@@ -409,6 +477,9 @@ private:
 
     int maxSteps_ = 300;
     int steps_ = 0;
+
+    std::ofstream out = std::ofstream("sim_log.txt");
+    std::ifstream inp = std::ifstream("dat.txt");
 
 private:
     void resampleEnvironmentalParameters() {
