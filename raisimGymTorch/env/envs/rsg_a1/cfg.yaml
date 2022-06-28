@@ -28,7 +28,7 @@ environment:
     GroundImpact:
       coeff: 0.00006
     Smoothness:
-      coeff: 0.03
+      coeff: 0.0
     ActionMagnitude:
       coeff: 0.005
     JointSpeed:

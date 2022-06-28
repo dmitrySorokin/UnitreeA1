@@ -203,6 +203,43 @@ public:
             curr_gv_init[i] += 0.1 * uniformDist_(randomGenerator_);
         }
 
+
+/*
+        inp >> curr_gc_init[2]; // height
+        curr_gc_init[2] = 0.45;
+
+        double euler1, euler2;
+        inp >> euler1;
+        inp >> euler2;
+
+        raisim::Vec<4> quat;
+        eulerVecToQuat({euler1, euler2, 0}, quat);
+        for (int i = 0; i < 4; ++i) {
+            curr_gc_init[3 + i] = quat[i];
+        }
+
+        for (int i = 0; i < 12; ++i) {
+            inp >> curr_gc_init[7 + i]; // joint angles
+        }
+
+        for (int i = 0; i < 18; ++i) {
+            inp >> curr_gv_init[i]; // body lin V, body ang V, joint vel
+        }
+
+        double tmp;
+        for (int i = 0; i < 16; ++i) {
+            inp >> tmp; // contacts, prev action
+        }
+
+        for (int i = 0; i < 12; ++i) {
+            inp >> tmp;
+            //pTarget12[i] = tmp;
+        }
+
+        std::cout << curr_gc_init << std::endl;
+        std::cout << "\n\n\n" << curr_gv_init << std::endl;
+*/
+
         a1_->setState(curr_gc_init, curr_gv_init);
         steps_ = 0;
         previousJointPositions_ = curr_gc_init.tail(nJoints_);
@@ -230,11 +267,10 @@ public:
         Eigen::VectorXd pTarget12 = action.cast<double>();
         // pTarget12 = pTarget12.cwiseMin(1).cwiseMax(-1);
         pTarget12 = actionMean_ + pTarget12.cwiseProduct(actionStd_);
-
 /*
         double tmp;
         inp >> tmp;
-        gc_[2] = tmp; // height
+        gc_[2] = tmp + 0.12; // height
 
         double euler1, euler2;
         inp >> euler1;
@@ -306,7 +342,7 @@ public:
         // New terms
         rewards_.record("Work", -0.25 * calculateWorkCost());
         rewards_.record("GroundImpact", -0.25 * 0.36 * calculateGroundImpactCost());
-        // rewards_.record("ActionMagnitude", -calculateActionMagnitudeCost());
+        rewards_.record("ActionMagnitude", -calculateActionMagnitudeCost());
         rewards_.record("ZAcceleration", -calculateZAccelerationCost());
 
         // Record values for next step calculations
@@ -389,25 +425,33 @@ public:
 /*
         double tmp;
         for (int i = 0; i < 49; ++i) {
-            inp >> tmp;
-            obDouble_ << tmp;
+            inp >> obDouble_[i];
         }
 
         for (int i = 0; i < 12; ++i) {
             inp >> tmp;
         }
 
+        for (int i = 0; i < 49; ++i) {
+            std::cout << obDouble_[i] << " ";
+        }
+
+        for (int i = 0; i < 12; ++i) {
+            obDouble_[37 + i] = previousJointPositions_[i];
+        }
+        std::cout << "\n\n\n";
         return;
 */
+
         obDouble_ << gc_[2],                   // body height 1
             euler_angles[0],
             euler_angles[1],  // body roll & pitch 2
-            gc_.tail(nJoints_),                // joint angles 12
+            gc_.tail(nJoints_) + 0.1 * Eigen::VectorXd::Random(nJoints_),                // joint angles 12
             bodyLinearVelocityNoised,          // body linear 3
             bodyAngularVelocityNoised,         // angular velocity 3
             velocitiesNoised,                  // joint velocity 12
             contacts,                          // contacts binary vector 4
-            previousJointPositions_ ;          // previous action 12
+            previousJointPositions_ + 0.1 * Eigen::VectorXd::Random(nJoints_);          // previous action 12
     }
 
     virtual void observe(Eigen::Ref<EigenVec> ob) override {
@@ -419,7 +463,7 @@ public:
         // Terminal condition
         double euler_angles[3];
         raisim::quatToEulerVec(&gc_[3], euler_angles);
-        if (gc_[2] < 0.28 || fabs(euler_angles[0]) > 0.4 || fabs(euler_angles[1]) > 0.2) {
+        if (gc_[2] < 0.15 || fabs(euler_angles[0]) > 0.4 || fabs(euler_angles[1]) > 0.2) {
             terminalReward = float(terminalRewardCoeff_);
             return true;
         }
@@ -475,7 +519,7 @@ private:
     std::array<bool, 4> footContactState_;
     std::unordered_map<int, int> contactSequentialIndex_;
 
-    int maxSteps_ = 300;
+    int maxSteps_ = 3500;
     int steps_ = 0;
 
     std::ofstream out = std::ofstream("sim_log.txt");
@@ -574,7 +618,7 @@ private:
             vel[2] = 0.0;
 
             if (!footContactState_[contactSequentialIndex_[footBodyIndex]]) {
-                footAirTimeCost += (p_f_hat - pos[2]) * (p_f_hat - pos[2]) * std::sqrt(vel.norm());
+                footAirTimeCost += (p_f_hat - pos[2]) * (p_f_hat - pos[2]) * vel.norm();
             }
         }
 
