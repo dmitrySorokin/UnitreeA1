@@ -19,36 +19,27 @@ environment:
     low: 0.2
     up: 1.2
   reward:
-    BaseForwardVelocity:
-      coeff: 0.75
-    BaseLateralAndRotation:
-      coeff: 0.9
-    Work:
-      coeff: 0.50
-    GroundImpact:
-      coeff: 0.00006
-    Smoothness:
-      coeff: 0.0
-    ActionMagnitude:
-      coeff: 0.005
-    JointSpeed:
-      coeff: 0.006
-    Orientation:
-      coeff: 2.4
-    ZAcceleration:
-      coeff: 2.0
-    Slip:
-      coeff: 0.4
-    AirTime:
-      coeff: 0.0
+    LinearVelocity:
+      coeff: 3.0
+    AngularVelocity:
+      coeff: 3.0
+    FootSlip:
+      coeff: -0.08
+    FootClearance:
+      coeff: -15.0
       desired_foot_height: 0.09
-    Torque:
-      coeff: 0.002
-    BaseHeight:
-      coeff: 4.0
+    Orientation:
+      coeff: -3.0
+    JointTorque:
+      coeff: -6e-4
+    JointSpeed:
+      coeff: -6e-4
+    BaseMotion:
+      coeff: -1.5
+
   terrain:
     frequency: 1.0
-    zScale: 0.2
+    zScale: 0.3
     xSize: 40.0
     ySize: 40.0
     xSamples: 200

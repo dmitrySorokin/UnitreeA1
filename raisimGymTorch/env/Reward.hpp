@@ -51,11 +51,18 @@ public:
     }
 
     float sum() {
-        float sum = 0.f;
+        float positive = 0.f;
+        float negative = 0.f;
         for (auto& rw : rewards_) {
-            sum += rw.second.reward;
+            float rew = rw.second.reward;
+            if (rew > 0) {
+                positive += rew;
+            } else {
+                negative += rew;
+            }
         }
-        return sum;
+
+        return positive * std::exp(0.2 * negative);
     }
 
     void reset() {

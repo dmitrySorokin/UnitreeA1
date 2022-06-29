@@ -329,21 +329,14 @@ public:
 
         updateObservation();
 
-        rewards_.record("BaseForwardVelocity", 0.6 * calculateBaseForwardVelocityCost());
-        rewards_.record("BaseLateralAndRotation", -calculateBaseLateralAndRotationCost());
-        rewards_.record("BaseHeight", -0.25 * calculateBaseHeightCost());
-        rewards_.record("Torque", -0.25 * calculateTorqueCost());
-        rewards_.record("JointSpeed", -0.25 * 0.36 * calculateJointSpeedCost());
-        rewards_.record("AirTime", calculateAirTimeCost());
-        rewards_.record("Slip", -0.25 * 0.36 * calculateSlipCost());
-        rewards_.record("Orientation", -0.25 * calculateOrientationCost());
-        rewards_.record("Smoothness", -0.25 * calculateSmoothnessCost());
-
-        // New terms
-        rewards_.record("Work", -0.25 * calculateWorkCost());
-        rewards_.record("GroundImpact", -0.25 * 0.36 * calculateGroundImpactCost());
-        rewards_.record("ActionMagnitude", -calculateActionMagnitudeCost());
-        rewards_.record("ZAcceleration", -calculateZAccelerationCost());
+        rewards_.record("LinearVelocity", linearVelocityCost());
+        rewards_.record("AngularVelocity", angularVelocityCost());
+        rewards_.record("FootSlip", footSlipCost());
+        rewards_.record("FootClearance", footClearanceCost());
+        rewards_.record("Orientation", orientationCost());
+        rewards_.record("JointTorque", jointTorqueCost());
+        rewards_.record("JointSpeed", jointSpeedCost());
+        rewards_.record("BaseMotion", baseMotionCost());
 
         // Record values for next step calculations
         previousTorque_ = a1_->getGeneralizedForce().e().tail(nJoints_);
@@ -444,14 +437,14 @@ public:
 */
 
         obDouble_ << gc_[2],                   // body height 1
-            euler_angles[0],
-            euler_angles[1],  // body roll & pitch 2
-            gc_.tail(nJoints_) + 0.1 * Eigen::VectorXd::Random(nJoints_),                // joint angles 12
+            euler_angles[0] + 0.03 * uniformDist_(randomGenerator_),
+            euler_angles[1]  + 0.03 * uniformDist_(randomGenerator_),  // body roll & pitch 2
+            gc_.tail(nJoints_) + 0.05 * Eigen::VectorXd::Random(nJoints_),                // joint angles 12
             bodyLinearVelocityNoised,          // body linear 3
             bodyAngularVelocityNoised,         // angular velocity 3
             velocitiesNoised,                  // joint velocity 12
             contacts,                          // contacts binary vector 4
-            previousJointPositions_ + 0.1 * Eigen::VectorXd::Random(nJoints_);          // previous action 12
+            previousJointPositions_ + 0.05 * Eigen::VectorXd::Random(nJoints_);          // previous action 12
     }
 
     virtual void observe(Eigen::Ref<EigenVec> ob) override {
@@ -581,34 +574,30 @@ private:
     // Cost terms calculations
     //
 
-    inline double calculateBaseForwardVelocityCost() {
-        return std::max(1.0 - std::abs(bodyLinearVel_[0] / targetSpeed_ - 1.0), 0.0);
-        // return std::exp(-std::pow(bodyLinearVel_[0] - targetSpeed_, 2.0) / 0.1);
+    inline double linearVelocityCost() {
+        return std::exp(-std::pow(targetSpeed_ - bodyLinearVel_[0], 2.0));
     }
 
-    inline double calculateBaseLateralAndRotationCost() {
-        return k_c *
-               (bodyLinearVel_[1] * bodyLinearVel_[1] + bodyAngularVel_[2] * bodyAngularVel_[2]);
+    inline double angularVelocityCost() {
+        return std::exp(-1.5 * std::pow(0 - bodyAngularVel_[2], 2.0));
     }
 
-    inline double calculateBaseHeightCost() {
-        return k_c * (gc_init_[2] - gc_[2]) * (gc_init_[2] - gc_[2]);
+    inline double footSlipCost() {
+        double result = 0.0;
+        for (auto footBodyIndex : contactIndices_) {
+            raisim::Vec<3> vel;
+            a1_->getVelocity(footBodyIndex, vel);
+            if (footContactState_[contactSequentialIndex_[footBodyIndex]]) {
+                result += vel[0] * vel[0] + vel[1] * vel[1];
+            }
+        }
+        return result;
     }
 
-    inline double calculateTorqueCost() {
-        return k_c * a1_->getGeneralizedForce().e().tail(nJoints_).squaredNorm();
-    }
+    inline double footClearanceCost() {
+        auto p_f_hat = cfg_["reward"]["FootClearance"]["desired_foot_height"].template As<double>();
 
-    inline double calculateJointSpeedCost() {
-        auto joint_velocities = gv_.tail(nJoints_);
-        const double speedCoef = std::max(std::abs(targetSpeed_), 0.6);
-        return k_c * joint_velocities.squaredNorm() / (speedCoef * speedCoef);
-    }
-
-    inline double calculateAirTimeCost() {
-        auto p_f_hat = cfg_["reward"]["AirTime"]["desired_foot_height"].template As<double>();
-
-        double footAirTimeCost = 0.0;
+        double result = 0.0;
         for (auto footBodyIndex : contactIndices_) {
             raisim::Vec<3> pos, vel;
             a1_->getPosition(footBodyIndex, pos);
@@ -616,64 +605,30 @@ private:
 
             // We only use xy velocity components
             vel[2] = 0.0;
-
-            if (!footContactState_[contactSequentialIndex_[footBodyIndex]]) {
-                footAirTimeCost += (p_f_hat - pos[2]) * (p_f_hat - pos[2]) * vel.norm();
-            }
+            result += (p_f_hat - pos[2]) * (p_f_hat - pos[2]) * std::sqrt(vel.norm());
         }
 
-        return k_c * footAirTimeCost;
+        return result;
     }
 
-    inline double calculateSlipCost() {
-        double footSlipCost = 0.0;
-        for (auto footBodyIndex : contactIndices_) {
-            raisim::Vec<3> vel;
-            a1_->getVelocity(footBodyIndex, vel);
-
-            // We only use xy velocity components
-            vel[2] = 0.0;
-
-            if (footContactState_[contactSequentialIndex_[footBodyIndex]]) {
-                footSlipCost += vel.squaredNorm();
-            }
-        }
-
-        const double speedCoef = std::max(std::abs(targetSpeed_), 0.6);
-        return k_c * footSlipCost / (speedCoef * speedCoef);
-    }
-
-    inline double calculateOrientationCost() {
+    inline double orientationCost() {
         auto angles_roll_pitch = gc_.segment(4, 2);
         return k_c * angles_roll_pitch.squaredNorm();
     }
 
-    inline double calculateSmoothnessCost() {
-        auto torque = a1_->getGeneralizedForce().e().tail(nJoints_);
-        return k_c * (previousTorque_ - torque).squaredNorm();
+    inline double jointTorqueCost() {
+        return a1_->getGeneralizedForce().e().tail(nJoints_).squaredNorm();
     }
 
-    //
-    // New reward terms
-    //
-    inline double calculateWorkCost() {
-        auto torque = a1_->getGeneralizedForce().e().tail(nJoints_);
-        auto jointPositions = gc_.tail(nJoints_);
-        return k_c * fabs(torque.transpose() * (jointPositions - previousJointPositions_));
+    inline double jointSpeedCost() {
+        auto joint_velocities = gv_.tail(nJoints_);
+        return joint_velocities.squaredNorm();
     }
 
-    inline double calculateGroundImpactCost() {
-        const double speedCoef = std::max(std::abs(targetSpeed_), 0.6);
-        return k_c * (groundImpactForces_ - previousGroundImpactForces_).squaredNorm() / (speedCoef * speedCoef);
-    }
-
-    inline double calculateActionMagnitudeCost() {
-        auto jointPositions = gc_.tail(nJoints_);
-        return k_c * jointPositions.squaredNorm();
-    }
-
-    inline double calculateZAccelerationCost() {
-        return k_c * (bodyLinearVel_[2] * bodyLinearVel_[2]);
+    inline double baseMotionCost() {
+        return 0.8 * bodyLinearVel_[2] * bodyLinearVel_[2] +
+            0.2 * std::abs(bodyAngularVel_[0]) +
+            0.2 * std::abs(bodyAngularVel_[1]);
     }
 };
 
