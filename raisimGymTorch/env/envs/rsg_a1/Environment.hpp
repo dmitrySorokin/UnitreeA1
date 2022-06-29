@@ -191,7 +191,7 @@ public:
 
         auto curr_gc_init = gc_init_;
         auto curr_gv_init = gv_init_;
-
+/*
         for (int i = 0; i < 4; ++i) {
             curr_gc_init[3 + i] += 0.1 * uniformDist_(randomGenerator_);
         }
@@ -203,7 +203,7 @@ public:
             curr_gv_init[i] += 0.1 * uniformDist_(randomGenerator_);
         }
 
-
+*/
 /*
         inp >> curr_gc_init[2]; // height
         curr_gc_init[2] = 0.45;

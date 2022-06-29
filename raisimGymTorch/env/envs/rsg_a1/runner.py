@@ -35,7 +35,7 @@ if __name__ == '__main__':
     cfg = YAML().load(open(task_path + '/cfg.yaml', 'r'))
 
     # create environment from the configuration file
-    env = VecEnv(RaisimGymEnv(home_path + '/rsc', dump(cfg['environment'], Dumper=RoundTripDumper)))
+    env = VecEnv(RaisimGymEnv(home_path + '/rsc', dump(cfg['environment'], Dumper=RoundTripDumper)), update_stats=True)
     obs = env.reset()
 
     # shortcuts
@@ -44,7 +44,7 @@ if __name__ == '__main__':
     num_threads = cfg['environment']['num_threads']
 
     # Training
-    n_steps = 128
+    n_steps = 256 
     total_steps = n_steps * env.num_envs
 
     actor = ppo_module.Actor(
@@ -86,7 +86,7 @@ if __name__ == '__main__':
     episode_rewards = deque(maxlen=env.num_envs)
     episode_steps = deque(maxlen=env.num_envs)
 
-    total_num_epochs = 5000
+    total_num_epochs = 15000
 
     for update in range(total_num_epochs):
         start = time.time()
@@ -114,7 +114,7 @@ if __name__ == '__main__':
         ppo.update(actor_obs=obs, value_obs=obs, log_this_iteration=update % 10 == 0, update=update)
 
         actor.update()
-        # actor.distribution.enforce_minimum_std((torch.ones(12)*0.2).to(device))
+        actor.distribution.enforce_minimum_std((torch.ones(12)*0.2).to(device))
 
         # curriculum update. Implement it in Environment.hpp
         env.curriculum_callback()

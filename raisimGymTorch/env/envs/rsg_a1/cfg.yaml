@@ -29,7 +29,7 @@ environment:
 
   terrain:
     frequency: 1.0
-    zScale: 0.3
+    zScale: 0.2
     xSize: 40.0
     ySize: 40.0
     xSamples: 200
