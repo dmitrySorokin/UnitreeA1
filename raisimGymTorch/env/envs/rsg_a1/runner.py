@@ -44,7 +44,7 @@ if __name__ == '__main__':
     num_threads = cfg['environment']['num_threads']
 
     # Training
-    n_steps = 256 
+    n_steps = 128
     total_steps = n_steps * env.num_envs
 
     actor = ppo_module.Actor(

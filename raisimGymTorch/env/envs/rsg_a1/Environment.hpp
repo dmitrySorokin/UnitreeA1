@@ -572,6 +572,7 @@ private:
     inline double velocityCost() {
         return -20 * std::abs(targetSpeed_ - bodyLinearVel_[0]) -
             bodyLinearVel_[1] * bodyLinearVel_[1] -
+            bodyLinearVel_[2] * bodyLinearVel_[2] -
             bodyAngularVel_[2] * bodyLinearVel_[2] -
             4 * (gc_init_[2] - gc_[2]) * (gc_init_[2] - gc_[2]);
     }
