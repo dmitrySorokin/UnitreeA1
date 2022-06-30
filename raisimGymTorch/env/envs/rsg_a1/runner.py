@@ -70,7 +70,7 @@ if __name__ == '__main__':
         num_envs=env.num_envs,
         num_transitions_per_env=n_steps,
         num_learning_epochs=4,
-        gamma=0.996,
+        gamma=0.998,
         lam=0.95,
         num_mini_batches=4,
         device=device,

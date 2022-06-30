@@ -19,14 +19,26 @@ environment:
     low: 0.2
     up: 1.2
   reward:
-    Velocity:
-      coeff: 1.0
-    Energy:
-      coeff: 1.0
-    Survival:
-      coeff: 1.0
-
-
+    BaseForwardVelocity:
+      coeff: 20.0
+    BaseLateralAndRotation:
+      coeff: 21.0
+    Work:
+      coeff: 0.002
+    GroundImpact:
+      coeff: 0.02
+    Smoothness:
+      coeff: 0.001
+    ActionMagnitude:
+      coeff: 0.07
+    JointSpeed:
+      coeff: 0.002
+    Orientation:
+      coeff: 1.5
+    ZAcceleration:
+      coeff: 2.0
+    Slip:
+      coeff: 0.8
   terrain:
     frequency: 1.0
     zScale: 0.2
