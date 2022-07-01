@@ -13,7 +13,7 @@ environment:
   max_time: 10.0
   gamma: 0.996
   # Curriculum factors
-  k_0: 0.03
+  k_0: 1.0
   k_d: 0.997
   target_speed:
     low: 0.2

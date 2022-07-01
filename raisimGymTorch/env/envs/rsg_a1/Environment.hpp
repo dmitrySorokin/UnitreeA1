@@ -460,6 +460,13 @@ public:
             return true;
         }
 
+        for (auto& contact : a1_->getContacts()) {
+            if (!contact.isSelfCollision() && contactIndices_.find(contact.getlocalBodyIndex()) == contactIndices_.end()) {
+                terminalReward = float(terminalRewardCoeff_);
+                return true;
+            }
+        }
+
         if (steps_ == maxSteps_) {
             terminalReward = 0;
             return true;
