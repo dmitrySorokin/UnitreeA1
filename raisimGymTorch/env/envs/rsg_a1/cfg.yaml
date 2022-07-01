@@ -26,15 +26,15 @@ environment:
     Survival:
       coeff: 1.0
   terrain:
-    frequency: 1.0
-    zScale: 0.2
-    xSize: 40.0
-    ySize: 40.0
+    frequency: 3
+    zScale: 0.23
+    xSize: 10.0
+    ySize: 10.0
     xSamples: 200
     ySamples: 200
-    fractalOctaves: 8
-    fractalLacunarity: 4.0
-    fractalGain: 0.9
+    fractalOctaves: 2
+    fractalLacunarity: 2.0
+    fractalGain: 0.25
 
 
 architecture:
