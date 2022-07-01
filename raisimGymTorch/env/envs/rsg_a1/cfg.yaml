@@ -28,10 +28,10 @@ environment:
   terrain:
     frequency: 3
     zScale: 0.23
-    xSize: 10.0
-    ySize: 10.0
-    xSamples: 200
-    ySamples: 200
+    xSize: 40.0
+    ySize: 40.0
+    xSamples: 800
+    ySamples: 800
     fractalOctaves: 2
     fractalLacunarity: 2.0
     fractalGain: 0.25

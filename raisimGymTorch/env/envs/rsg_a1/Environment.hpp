@@ -455,7 +455,7 @@ public:
         // Terminal condition
         double euler_angles[3];
         raisim::quatToEulerVec(&gc_[3], euler_angles);
-        if (gc_[2] < 0.15 || fabs(euler_angles[0]) > 0.4 || fabs(euler_angles[1]) > 0.2) {
+        if (gc_[2] < 0.28 || fabs(euler_angles[0]) > 0.4 || fabs(euler_angles[1]) > 0.2) {
             terminalReward = float(terminalRewardCoeff_);
             return true;
         }
@@ -583,7 +583,7 @@ private:
         auto torque = a1_->getGeneralizedForce().e().tail(nJoints_);
         // auto jointPositions = gc_.tail(nJoints_);
         auto joint_velocities = gv_.tail(nJoints_);
-        return -0.04 * std::fabs(torque.transpose() * joint_velocities);
+        return -0.1 * std::fabs(torque.transpose() * joint_velocities);
     }
 
     inline double calculateSurvivalCost() {
