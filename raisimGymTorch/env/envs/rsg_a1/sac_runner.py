@@ -64,13 +64,13 @@ if __name__ == '__main__':
 
     # directories
     task_path = os.path.dirname(os.path.realpath(__file__))
-    home_path = task_path + '/../../../../..'
+    home_path = task_path + '/../../../..'
 
     # config
     cfg = YAML().load(open(task_path + '/cfg.yaml', 'r'))
 
     saver = ConfigurationSaver(
-        log_dir=home_path + '/raisimGymTorch/data/anymal_locomotion',
+        log_dir=home_path + '/data/anymal_locomotion',
         save_items=[task_path + '/cfg.yaml', task_path + '/Environment.hpp']
     )
 
@@ -111,12 +111,13 @@ if __name__ == '__main__':
         mask = 1.0 - done
 
         # update statistics
+        (ids,) = np.where(done)
         episode_reward += reward
         episode_steps += 1
-        total_reward.extend(episode_reward)
-        total_steps.extend(episode_steps)
-        episode_reward *= mask
-        episode_steps *= mask
+        total_reward.extend(episode_reward[ids])
+        total_steps.extend(episode_steps[ids])
+        episode_reward[ids] = 0
+        episode_steps[ids] =0
 
         for st, act, rew, next_st, msk in zip(state, action, reward, next_state, mask):
             memory.push(st, act, rew, next_st, msk) # Append transition to memory
